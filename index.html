@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Tutorial V2</title>
+<title>Project Playcare - Arrival</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
@@ -28,8 +28,9 @@ position:absolute;
 bottom:20px;
 left:20px;
 color:white;
-font-size:18px;
+font-size:16px;
 z-index:50;
+opacity:0.8;
 }
 
 #prompt {
@@ -47,7 +48,8 @@ z-index:50;
 
 <div id="overlay">
 PROJECT PLAYCARE<br>
-<div style="font-size:18px; opacity:0.7; margin-top:15px;">
+<div style="font-size:18px; opacity:0.6; margin-top:15px;">
+Train Crash Detected...<br><br>
 Click To Wake Up
 </div>
 </div>
@@ -65,13 +67,13 @@ WASD Move | Shift Sprint | Space Jump | F Flashlight | E Interact
 /* ================= SCENE ================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x303040);
+scene.background = new THREE.Color(0x2a2a30);
 
 const camera = new THREE.PerspectiveCamera(
 75,
 window.innerWidth/window.innerHeight,
 0.1,
-2000
+3000
 );
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -80,35 +82,34 @@ document.body.appendChild(renderer.domElement);
 
 /* ================= LIGHTING ================= */
 
-const ambient = new THREE.AmbientLight(0xffffff,0.7);
+const ambient = new THREE.AmbientLight(0xffffff,0.6);
 scene.add(ambient);
 
-function ceilingLight(x,z){
-const light = new THREE.PointLight(0xffffff,0.8,50);
-light.position.set(x,8,z);
+function ceilingLight(x,y,z,color=0xffffff,intensity=1){
+const light = new THREE.PointLight(color,intensity,60);
+light.position.set(x,y,z);
 scene.add(light);
 
 const bulb = new THREE.Mesh(
-new THREE.SphereGeometry(0.3),
-new THREE.MeshStandardMaterial({color:0xffffcc})
+new THREE.SphereGeometry(0.4),
+new THREE.MeshStandardMaterial({color})
 );
 bulb.position.copy(light.position);
 scene.add(bulb);
 }
 
-ceilingLight(0,-10);
-ceilingLight(0,-40);
+ceilingLight(0,8,-15,0xffe6aa,1);
 
 /* ================= FLOOR ================= */
 
 const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(400,400),
-new THREE.MeshStandardMaterial({color:0x666666})
+new THREE.PlaneGeometry(800,800),
+new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ================= BUILDING HELPERS ================= */
+/* ================= WALL HELPER ================= */
 
 function wall(x,y,z,w,h,d,color=0x999999){
 const mesh = new THREE.Mesh(
@@ -122,38 +123,79 @@ return mesh;
 
 /* ================= SPAWN ROOM ================= */
 
-wall(0,5,-20,30,10,1);
-wall(-15,5,-5,1,10,30);
-wall(15,5,-5,1,10,30);
-wall(0,10,-5,30,1,30);
-wall(0,0,-5,30,1,30);
+wall(0,5,-15,20,10,1);
+wall(-10,5,-5,1,10,20);
+wall(10,5,-5,1,10,20);
+wall(0,10,-5,20,1,20);
+wall(0,0,-5,20,1,20);
+wall(0,5,5,20,10,1);
 
-/* Close Back */
-wall(0,5,10,30,10,1);
+/* Red crash light behind player */
+let crashLight = new THREE.PointLight(0xff0000,1,30);
+crashLight.position.set(0,4,6);
+scene.add(crashLight);
 
-/* EXIT SIGN */
-const exitSign = new THREE.Mesh(
-new THREE.BoxGeometry(4,1,0.2),
-new THREE.MeshStandardMaterial({color:0x00ff00})
+/* Flicker */
+setInterval(()=>{
+crashLight.intensity = 0.5 + Math.random();
+},120);
+
+/* ================= EXIT ARROWS ================= */
+
+function arrow(x,z){
+const mesh = new THREE.Mesh(
+new THREE.PlaneGeometry(3,3),
+new THREE.MeshBasicMaterial({color:0x00ff00, side:THREE.DoubleSide})
 );
-exitSign.position.set(0,8,-20.6);
-scene.add(exitSign);
+mesh.rotation.x = -Math.PI/2;
+mesh.position.set(x,0.05,z);
+scene.add(mesh);
+}
 
-/* ================= CORRIDOR ================= */
+arrow(0,-5);
+arrow(0,-10);
 
-wall(-8,5,-40,1,10,40);
-wall(8,5,-40,1,10,40);
-wall(0,10,-40,16,1,40);
+/* ================= DOOR ================= */
 
-/* ================= DOOR FRAME ================= */
+wall(-3,4,-15,1,8,1);
+wall(3,4,-15,1,8,1);
+wall(0,8,-15,6,1,1);
 
-wall(-4,4,-60,1,8,1);
-wall(4,4,-60,1,8,1);
-wall(0,8,-60,8,1,1);
+let door = wall(0,4,-15,4,8,0.5,0x3333aa);
+let doorOpen=false;
 
-/* Sliding Door */
-let door = wall(0,4,-60,6,8,0.5,0x3333aa);
-let doorOpen = false;
+/* ================= TRANSITION TUNNEL ================= */
+
+wall(-5,5,-35,1,10,40,0x777777);
+wall(5,5,-35,1,10,40,0x777777);
+wall(0,10,-35,10,1,40,0x777777);
+
+ceilingLight(0,8,-30,0xffffff,0.7);
+
+/* ================= PLAYCARE ATRIUM ================= */
+
+wall(-40,10,-90,1,20,80,0xaaaaaa);
+wall(40,10,-90,1,20,80,0xaaaaaa);
+wall(0,20,-90,80,1,80,0xaaaaaa);
+
+/* Big sign */
+const sign = new THREE.Mesh(
+new THREE.BoxGeometry(20,4,1),
+new THREE.MeshStandardMaterial({color:0x00aaff})
+);
+sign.position.set(0,15,-110);
+scene.add(sign);
+
+ceilingLight(0,18,-90,0x66ccff,1.5);
+
+/* Colored floor section */
+const atriumFloor = new THREE.Mesh(
+new THREE.PlaneGeometry(60,60),
+new THREE.MeshStandardMaterial({color:0x445566})
+);
+atriumFloor.rotation.x = -Math.PI/2;
+atriumFloor.position.z = -90;
+scene.add(atriumFloor);
 
 /* ================= BATTERY ================= */
 
@@ -161,7 +203,7 @@ let battery = new THREE.Mesh(
 new THREE.BoxGeometry(1,1,1),
 new THREE.MeshStandardMaterial({color:0xffff00})
 );
-battery.position.set(5,1,-30);
+battery.position.set(4,1,-25);
 scene.add(battery);
 let batteryCollected=false;
 
@@ -187,31 +229,10 @@ let keys={};
 
 document.addEventListener("keydown",e=>{
 keys[e.code]=true;
-
-if(e.code==="KeyF"){
-flashlightOn=!flashlightOn;
-flashlight.intensity=flashlightOn?2:0;
-}
-
-if(e.code==="KeyE"){
-interact();
-}
+if(e.code==="KeyE") interact();
 });
 
 document.addEventListener("keyup",e=>keys[e.code]=false);
-
-/* ================= FLASHLIGHT ================= */
-
-const flashlight=new THREE.SpotLight(0xffffff,0);
-flashlight.angle=Math.PI/7;
-flashlight.distance=200;
-
-camera.add(flashlight);
-camera.add(flashlight.target);
-flashlight.position.set(0,0.5,-0.5);
-flashlight.target.position.set(0,0,-5);
-
-let flashlightOn=false;
 
 /* ================= INTERACTION ================= */
 
@@ -226,7 +247,6 @@ showPrompt("Battery Collected");
 
 if(!doorOpen &&
 player.position.distanceTo(door.position)<4){
-
 if(batteryCollected){
 doorOpen=true;
 showPrompt("Door Powered");
@@ -309,12 +329,11 @@ player.position.y=2;
 canJump=true;
 }
 
-/* Smooth sliding door */
-if(doorOpen && door.position.x<10){
-door.position.x+=10*delta;
+/* Slide door */
+if(doorOpen && door.position.x<8){
+door.position.x+=8*delta;
 }
 
-/* Battery Spin */
 if(!batteryCollected){
 battery.rotation.y+=2*delta;
 }
@@ -323,8 +342,6 @@ renderer.render(scene,camera);
 }
 
 animate();
-
-/* ================= RESIZE ================= */
 
 window.addEventListener("resize",()=>{
 camera.aspect=window.innerWidth/window.innerHeight;
