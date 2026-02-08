@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Foundation</title>
+<title>Project Playcare</title>
 
 <style>
-body { margin:0; overflow:hidden; background:black; }
+body { margin:0; overflow:hidden; background:black; font-family:Arial; }
 
 #overlay {
 position:absolute;
@@ -13,22 +13,26 @@ top:0;
 left:0;
 width:100%;
 height:100%;
-background:rgba(0,0,0,0.9);
+background:rgba(0,0,0,0.95);
 color:white;
 display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-font-family:Arial;
 font-size:32px;
 cursor:pointer;
 z-index:100;
 text-align:center;
 }
-#sub {
-font-size:18px;
-opacity:0.7;
-margin-top:15px;
+
+#ui {
+position:absolute;
+bottom:20px;
+left:20px;
+color:white;
+font-size:16px;
+z-index:50;
+opacity:0.8;
 }
 </style>
 </head>
@@ -36,19 +40,24 @@ margin-top:15px;
 
 <div id="overlay">
 PROJECT PLAYCARE<br>
-<div id="sub">Click To Enter</div>
+<div style="font-size:18px; opacity:0.6; margin-top:15px;">
+Click To Enter
+</div>
+</div>
+
+<div id="ui">
+Flashlight: OFF (Press F)
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
 
-/* =========================
-   BASIC SCENE SETUP
-========================= */
+/* ================= SCENE ================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a12);
+scene.background = new THREE.Color(0x050509);
+scene.fog = new THREE.Fog(0x050509, 10, 120);
 
 const camera = new THREE.PerspectiveCamera(
 75,
@@ -61,42 +70,46 @@ const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* =========================
-   LIGHTING
-========================= */
+/* ================= LIGHTING ================= */
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+const ambient = new THREE.AmbientLight(0xffffff, 0.05);
 scene.add(ambient);
 
-const light = new THREE.DirectionalLight(0xffffff, 0.8);
-light.position.set(5,20,10);
-scene.add(light);
+/* FLASHLIGHT */
+const flashlight = new THREE.SpotLight(0xffffff, 0);
+flashlight.angle = Math.PI / 8;
+flashlight.penumbra = 0.5;
+flashlight.decay = 1.5;
+flashlight.distance = 150;
+flashlight.castShadow = false;
 
-/* =========================
-   FLOOR
-========================= */
+camera.add(flashlight);
+camera.add(flashlight.target);
+flashlight.position.set(0,0,0);
+flashlight.target.position.set(0,0,-1);
+scene.add(camera);
+
+let flashlightOn = false;
+
+/* ================= FLOOR ================= */
 
 const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(200,200),
-new THREE.MeshStandardMaterial({ color:0x222222 })
+new THREE.PlaneGeometry(300,300),
+new THREE.MeshStandardMaterial({ color:0x111111 })
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* =========================
-   TEST OBJECT
-========================= */
+/* TEST OBJECT */
 
-const testCube = new THREE.Mesh(
+const cube = new THREE.Mesh(
 new THREE.BoxGeometry(3,3,3),
 new THREE.MeshStandardMaterial({ color:0xaa0000 })
 );
-testCube.position.set(0,1.5,-20);
-scene.add(testCube);
+cube.position.set(0,1.5,-30);
+scene.add(cube);
 
-/* =========================
-   PLAYER SYSTEM
-========================= */
+/* ================= PLAYER ================= */
 
 const player = new THREE.Object3D();
 player.position.set(0,2,10);
@@ -106,22 +119,32 @@ player.add(camera);
 let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 
-let moveSpeed = 4;        // horror slow walk
+let moveSpeed = 4;
 let sprintSpeed = 7;
 let gravity = 20;
 let jumpForce = 8;
 
 let canJump = false;
-let isSprinting = false;
-
 let keys = {};
 
-document.addEventListener("keydown", e => keys[e.code] = true);
+/* ================= INPUT ================= */
+
+document.addEventListener("keydown", e => {
+
+keys[e.code] = true;
+
+if(e.code === "KeyF"){
+flashlightOn = !flashlightOn;
+flashlight.intensity = flashlightOn ? 3 : 0;
+document.getElementById("ui").innerText =
+"Flashlight: " + (flashlightOn ? "ON (Press F)" : "OFF (Press F)");
+}
+
+});
+
 document.addEventListener("keyup", e => keys[e.code] = false);
 
-/* =========================
-   POINTER LOCK
-========================= */
+/* ================= POINTER LOCK ================= */
 
 const overlay = document.getElementById("overlay");
 
@@ -137,9 +160,7 @@ overlay.style.display = "flex";
 }
 });
 
-/* =========================
-   MOUSE LOOK
-========================= */
+/* ================= MOUSE LOOK ================= */
 
 let yaw = 0;
 let pitch = 0;
@@ -158,9 +179,7 @@ camera.rotation.x = pitch;
 }
 });
 
-/* =========================
-   MOVEMENT UPDATE
-========================= */
+/* ================= MOVEMENT ================= */
 
 let prevTime = performance.now();
 
@@ -171,75 +190,54 @@ const time = performance.now();
 const delta = (time - prevTime) / 1000;
 prevTime = time;
 
-/* Movement Direction */
-
+/* Direction */
 direction.set(0,0,0);
-
 if(keys["KeyW"]) direction.z -= 1;
 if(keys["KeyS"]) direction.z += 1;
 if(keys["KeyA"]) direction.x -= 1;
 if(keys["KeyD"]) direction.x += 1;
-
 direction.normalize();
 
-/* Sprint */
+/* Speed */
+let speed = (keys["ShiftLeft"] || keys["ShiftRight"]) ? sprintSpeed : moveSpeed;
 
-isSprinting = keys["ShiftLeft"] || keys["ShiftRight"];
-let currentSpeed = isSprinting ? sprintSpeed : moveSpeed;
-
-/* Apply movement relative to facing */
-
-if(direction.length() > 0){
-velocity.x = direction.x * currentSpeed;
-velocity.z = direction.z * currentSpeed;
-} else {
-velocity.x = 0;
-velocity.z = 0;
-}
-
-/* Apply gravity */
-
+/* Velocity */
+velocity.x = direction.x * speed;
+velocity.z = direction.z * speed;
 velocity.y -= gravity * delta;
 
 /* Jump */
-
 if(keys["Space"] && canJump){
 velocity.y = jumpForce;
 canJump = false;
 }
 
-/* Move Player */
+/* Move */
+player.translateX(velocity.x * delta);
+player.translateZ(velocity.z * delta);
+player.position.y += velocity.y * delta;
 
-const move = new THREE.Vector3(
-velocity.x * delta,
-velocity.y * delta,
-velocity.z * delta
-);
-
-player.translateX(move.x);
-player.position.y += move.y;
-player.translateZ(move.z);
-
-/* Floor Collision */
-
+/* Floor collision */
 if(player.position.y < 2){
 velocity.y = 0;
 player.position.y = 2;
 canJump = true;
 }
 
-/* Animate test object */
+/* Flashlight flicker */
+if(flashlightOn){
+flashlight.intensity = 2.8 + Math.random() * 0.4;
+}
 
-testCube.rotation.y += 0.5 * delta;
+/* Animate cube */
+cube.rotation.y += 0.6 * delta;
 
 renderer.render(scene, camera);
 }
 
 animate();
 
-/* =========================
-   RESIZE
-========================= */
+/* ================= RESIZE ================= */
 
 window.addEventListener("resize", () => {
 camera.aspect = window.innerWidth / window.innerHeight;
