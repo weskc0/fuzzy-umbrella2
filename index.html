@@ -2,13 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>FPS Test Stable</title>
+<title>Project Playcare - Foundation</title>
+
 <style>
 body { margin:0; overflow:hidden; background:black; }
-
-canvas {
-display:block;
-}
 
 #overlay {
 position:absolute;
@@ -16,123 +13,236 @@ top:0;
 left:0;
 width:100%;
 height:100%;
-background:rgba(0,0,0,0.85);
+background:rgba(0,0,0,0.9);
 color:white;
 display:flex;
+flex-direction:column;
 align-items:center;
 justify-content:center;
-font-size:40px;
+font-family:Arial;
+font-size:32px;
 cursor:pointer;
 z-index:100;
+text-align:center;
+}
+#sub {
+font-size:18px;
+opacity:0.7;
+margin-top:15px;
 }
 </style>
 </head>
 <body>
 
-<div id="overlay">Click To Enter</div>
+<div id="overlay">
+PROJECT PLAYCARE<br>
+<div id="sub">Click To Enter</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
 
-console.log("THREE exists:", typeof THREE);
+/* =========================
+   BASIC SCENE SETUP
+========================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x222244);
+scene.background = new THREE.Color(0x0a0a12);
 
 const camera = new THREE.PerspectiveCamera(
 75,
-window.innerWidth/window.innerHeight,
+window.innerWidth / window.innerHeight,
 0.1,
 1000
 );
 
-camera.position.set(0,5,15);
-
-const renderer = new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* LIGHT */
-const light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(5,10,5);
+/* =========================
+   LIGHTING
+========================= */
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambient);
+
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(5,20,10);
 scene.add(light);
 
-/* FLOOR */
+/* =========================
+   FLOOR
+========================= */
+
 const floor = new THREE.Mesh(
-new THREE.BoxGeometry(50,1,50),
-new THREE.MeshStandardMaterial({color:0x444444})
+new THREE.PlaneGeometry(200,200),
+new THREE.MeshStandardMaterial({ color:0x222222 })
 );
-floor.position.y = -1;
+floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* CUBE */
-const cube = new THREE.Mesh(
-new THREE.BoxGeometry(3,3,3),
-new THREE.MeshStandardMaterial({color:0xff0000})
-);
-scene.add(cube);
+/* =========================
+   TEST OBJECT
+========================= */
 
-/* OVERLAY */
+const testCube = new THREE.Mesh(
+new THREE.BoxGeometry(3,3,3),
+new THREE.MeshStandardMaterial({ color:0xaa0000 })
+);
+testCube.position.set(0,1.5,-20);
+scene.add(testCube);
+
+/* =========================
+   PLAYER SYSTEM
+========================= */
+
+const player = new THREE.Object3D();
+player.position.set(0,2,10);
+scene.add(player);
+player.add(camera);
+
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
+
+let moveSpeed = 4;        // horror slow walk
+let sprintSpeed = 7;
+let gravity = 20;
+let jumpForce = 8;
+
+let canJump = false;
+let isSprinting = false;
+
+let keys = {};
+
+document.addEventListener("keydown", e => keys[e.code] = true);
+document.addEventListener("keyup", e => keys[e.code] = false);
+
+/* =========================
+   POINTER LOCK
+========================= */
+
 const overlay = document.getElementById("overlay");
 
 overlay.addEventListener("click", () => {
 renderer.domElement.requestPointerLock();
 });
 
-/* POINTER LOCK EVENTS */
 document.addEventListener("pointerlockchange", () => {
-if (document.pointerLockElement === renderer.domElement) {
+if(document.pointerLockElement === renderer.domElement){
 overlay.style.display = "none";
 } else {
 overlay.style.display = "flex";
 }
 });
 
-/* MOUSE LOOK */
+/* =========================
+   MOUSE LOOK
+========================= */
+
 let yaw = 0;
 let pitch = 0;
 
 document.addEventListener("mousemove", (event) => {
-if (document.pointerLockElement === renderer.domElement) {
+if(document.pointerLockElement === renderer.domElement){
 
 yaw -= event.movementX * 0.002;
 pitch -= event.movementY * 0.002;
 
 pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
 
-camera.rotation.order = "YXZ";
-camera.rotation.y = yaw;
+player.rotation.y = yaw;
 camera.rotation.x = pitch;
+
 }
 });
 
-/* MOVEMENT */
-let keys = {};
+/* =========================
+   MOVEMENT UPDATE
+========================= */
 
-document.addEventListener("keydown", e => keys[e.code] = true);
-document.addEventListener("keyup", e => keys[e.code] = false);
+let prevTime = performance.now();
 
 function animate(){
 requestAnimationFrame(animate);
 
-const speed = 0.2;
+const time = performance.now();
+const delta = (time - prevTime) / 1000;
+prevTime = time;
 
-if(keys["KeyW"]) camera.position.z -= speed;
-if(keys["KeyS"]) camera.position.z += speed;
-if(keys["KeyA"]) camera.position.x -= speed;
-if(keys["KeyD"]) camera.position.x += speed;
+/* Movement Direction */
 
-cube.rotation.y += 0.01;
+direction.set(0,0,0);
+
+if(keys["KeyW"]) direction.z -= 1;
+if(keys["KeyS"]) direction.z += 1;
+if(keys["KeyA"]) direction.x -= 1;
+if(keys["KeyD"]) direction.x += 1;
+
+direction.normalize();
+
+/* Sprint */
+
+isSprinting = keys["ShiftLeft"] || keys["ShiftRight"];
+let currentSpeed = isSprinting ? sprintSpeed : moveSpeed;
+
+/* Apply movement relative to facing */
+
+if(direction.length() > 0){
+velocity.x = direction.x * currentSpeed;
+velocity.z = direction.z * currentSpeed;
+} else {
+velocity.x = 0;
+velocity.z = 0;
+}
+
+/* Apply gravity */
+
+velocity.y -= gravity * delta;
+
+/* Jump */
+
+if(keys["Space"] && canJump){
+velocity.y = jumpForce;
+canJump = false;
+}
+
+/* Move Player */
+
+const move = new THREE.Vector3(
+velocity.x * delta,
+velocity.y * delta,
+velocity.z * delta
+);
+
+player.translateX(move.x);
+player.position.y += move.y;
+player.translateZ(move.z);
+
+/* Floor Collision */
+
+if(player.position.y < 2){
+velocity.y = 0;
+player.position.y = 2;
+canJump = true;
+}
+
+/* Animate test object */
+
+testCube.rotation.y += 0.5 * delta;
 
 renderer.render(scene, camera);
 }
 
 animate();
 
-/* RESIZE FIX */
+/* =========================
+   RESIZE
+========================= */
+
 window.addEventListener("resize", () => {
-camera.aspect = window.innerWidth/window.innerHeight;
+camera.aspect = window.innerWidth / window.innerHeight;
 camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth, window.innerHeight);
 });
