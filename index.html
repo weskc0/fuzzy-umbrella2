@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Project Playcare - Industrial Demo</title>
+<style>
+body { margin:0; overflow:hidden; background:black; font-family:Arial; }
+#ui {
+position:absolute;
+top:10px;
+left:10px;
+color:white;
+font-size:14px;
+}
+#centerMsg{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+color:red;
+font-size:40px;
+display:none;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+WASD Move | Shift Sprint | Space Jump | F Flashlight<br>
+Scroll Switch Polarity | Click Magnet | E Interact<br>
+Gas Level: <span id="gasLevel">0</span>%<br>
+Health: <span id="health">100</span>
+</div>
+
+<div id="centerMsg"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+
+/* ================= SCENE SETUP ================= */
+
+let scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x000000, 20, 120);
+
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+let controls = new THREE.PointerLockControls(camera, document.body);
+document.body.addEventListener("click", () => controls.lock());
+scene.add(controls.getObject());
+
+/* ================= LIGHTING ================= */
+
+let ambient = new THREE.AmbientLight(0x202020);
+scene.add(ambient);
+
+let flashlight = new THREE.SpotLight(0xffffff, 4, 80, Math.PI/10, 0.5);
+camera.add(flashlight);
+camera.add(flashlight.target);
+scene.add(camera);
+
+/* ================= FLOOR ================= */
+
+let floor = new THREE.Mesh(
+new THREE.PlaneGeometry(300,300),
+new THREE.MeshStandardMaterial({color:0x1a1a1a})
+);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+/* ================= MOVEMENT ================= */
+
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
+let move = {forward:false, back:false, left:false, right:false, sprint:false};
+let canJump = true;
+
+document.addEventListener('keydown', e=>{
+if(e.code==="KeyW") move.forward=true;
+if(e.code==="KeyS") move.back=true;
+if(e.code==="KeyA") move.left=true;
+if(e.code==="KeyD") move.right=true;
+if(e.code==="ShiftLeft") move.sprint=true;
+if(e.code==="Space" && canJump){ velocity.y+=8; canJump=false; }
+if(e.code==="KeyF") flashlight.visible=!flashlight.visible;
+if(e.code==="KeyE") interact();
+});
+
+document.addEventListener('keyup', e=>{
+if(e.code==="KeyW") move.forward=false;
+if(e.code==="KeyS") move.back=false;
+if(e.code==="KeyA") move.left=false;
+if(e.code==="KeyD") move.right=false;
+if(e.code==="ShiftLeft") move.sprint=false;
+});
+
+/* ================= BATTERY SYSTEM ================= */
+
+let raycaster = new THREE.Raycaster();
+let carryingBattery = null;
+
+function createBattery(x,z){
+let battery = new THREE.Mesh(
+new THREE.CylinderGeometry(0.7,0.7,2,16),
+new THREE.MeshStandardMaterial({color:0x222222, emissive:0x00ff00, emissiveIntensity:0.5})
+);
+battery.rotation.z = Math.PI/2;
+battery.position.set(x,1,z);
+battery.userData.type="battery";
+scene.add(battery);
+return battery;
+}
+
+let battery1 = createBattery(-15,-20);
+
+function createSocket(x,z){
+let socket = new THREE.Mesh(
+new THREE.BoxGeometry(2,2,1),
+new THREE.MeshStandardMaterial({color:0x111111})
+);
+socket.position.set(x,2,z);
+socket.userData.type="socket";
+socket.userData.powered=false;
+scene.add(socket);
+return socket;
+}
+
+let socket1 = createSocket(0,-38);
+
+function interact(){
+raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+let intersects = raycaster.intersectObjects(scene.children);
+
+if(intersects.length>0){
+let obj = intersects[0].object;
+
+if(obj.userData.type==="battery" && !carryingBattery){
+carryingBattery = obj;
+}
+
+if(obj.userData.type==="socket" && carryingBattery && !obj.userData.powered){
+insertBattery(obj);
+}
+}
+}
+
+function insertBattery(socket){
+carryingBattery.position.copy(socket.position);
+carryingBattery.position.y -= 0.5;
+socket.material.emissive = new THREE.Color(0x00ff00);
+socket.userData.powered=true;
+carryingBattery = null;
+powerOn();
+}
+
+/* Carry battery */
+function updateBatteryCarry(){
+if(carryingBattery){
+let forward = new THREE.Vector3();
+camera.getWorldDirection(forward);
+carryingBattery.position.copy(camera.position)
+.add(forward.multiplyScalar(3));
+carryingBattery.position.y -= 1;
+}
+}
+
+/* ================= DOOR ================= */
+
+let door = new THREE.Mesh(
+new THREE.BoxGeometry(6,6,1),
+new THREE.MeshStandardMaterial({color:0x550000})
+);
+door.position.set(0,3,-50);
+scene.add(door);
+
+function unlockDoor(){
+let open = setInterval(()=>{
+door.position.y += 0.2;
+if(door.position.y > 10) clearInterval(open);
+},16);
+}
+
+/* ================= GAS SYSTEM ================= */
+
+let gasLevel = 0;
+let health = 100;
+let gasActive = true;
+let powered = false;
+
+let gasOverlay = new THREE.Mesh(
+new THREE.PlaneGeometry(200,200),
+new THREE.MeshBasicMaterial({color:0xff0000, transparent:true, opacity:0})
+);
+gasOverlay.rotation.x = -Math.PI/2;
+gasOverlay.position.y = 0.1;
+scene.add(gasOverlay);
+
+function updateGas(){
+if(!gasActive) return;
+
+gasLevel += 0.05;
+document.getElementById("gasLevel").innerText = Math.floor(gasLevel);
+
+gasOverlay.material.opacity = gasLevel/200;
+
+if(gasLevel >= 100){
+health -= 0.3;
+document.getElementById("health").innerText = Math.floor(health);
+}
+
+if(health <= 0){
+gameOver("YOU SUFFOCATED");
+}
+}
+
+/* ================= POWER ON ================= */
+
+function powerOn(){
+powered = true;
+gasActive = false;
+unlockDoor();
+}
+
+/* ================= GAME OVER ================= */
+
+function gameOver(text){
+document.getElementById("centerMsg").style.display="block";
+document.getElementById("centerMsg").innerText=text;
+controls.unlock();
+}
+
+/* ================= LOOP ================= */
+
+camera.position.y = 2;
+
+function animate(){
+requestAnimationFrame(animate);
+
+velocity.y -= 0.4;
+
+direction.z = Number(move.forward) - Number(move.back);
+direction.x = Number(move.right) - Number(move.left);
+direction.normalize();
+
+let speed = move.sprint ? 0.35 : 0.18;
+
+if(move.forward||move.back)
+controls.moveForward(direction.z*speed);
+if(move.left||move.right)
+controls.moveRight(direction.x*speed);
+
+camera.position.y += velocity.y*0.1;
+
+if(camera.position.y<2){
+velocity.y=0;
+camera.position.y=2;
+canJump=true;
+}
+
+updateBatteryCarry();
+updateGas();
+
+renderer.render(scene,camera);
+}
+animate();
+
+</script>
+</body>
+</html>
