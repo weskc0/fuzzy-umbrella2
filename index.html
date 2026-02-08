@@ -5,6 +5,32 @@
 <title>Project Playcare</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
+
+#titleScreen, #loadingScreen {
+position:absolute;
+width:100%;
+height:100%;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+background:black;
+color:white;
+z-index:20;
+}
+
+#titleScreen h1{
+font-size:48px;
+margin:0;
+}
+
+#titleScreen button{
+margin-top:20px;
+padding:10px 20px;
+font-size:18px;
+cursor:pointer;
+}
+
 #crosshair{
 position:absolute;
 top:50%;
@@ -13,54 +39,94 @@ width:6px;
 height:6px;
 background:white;
 transform:translate(-50%,-50%);
+display:none;
 z-index:10;
 }
-#hint{
-position:absolute;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-color:white;
-font-size:14px;
-opacity:0.8;
-}
+
 </style>
 </head>
 <body>
 
+<div id="titleScreen">
+<h1>PROJECT PLAYCARE</h1>
+<button id="startBtn">Start Game</button>
+</div>
+
+<div id="loadingScreen" style="display:none;">
+<h2>Loading...</h2>
+</div>
+
 <div id="crosshair"></div>
-<div id="hint">WASD Move | Shift Sprint | Space Jump | Click to Lock Cursor</div>
+
+<audio id="titleMusic" src="Title music.mp3" loop></audio>
+<audio id="bgm" src="Bgm-1.mp3" loop></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-
 <script>
 
-/* ================= CORE ================= */
+/* ================= GAME STATE ================= */
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcfefff);
-scene.fog = new THREE.Fog(0xcfefff, 80, 300);
+let gameState="title";
 
-const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-document.body.appendChild(renderer.domElement);
+const titleScreen=document.getElementById("titleScreen");
+const loadingScreen=document.getElementById("loadingScreen");
+const startBtn=document.getElementById("startBtn");
+const crosshair=document.getElementById("crosshair");
 
-renderer.domElement.addEventListener("click",()=>{
-renderer.domElement.requestPointerLock();
-});
+const titleMusic=document.getElementById("titleMusic");
+const bgm=document.getElementById("bgm");
 
-/* ================= LIGHTING ================= */
+titleMusic.volume=0;
+bgm.volume=0;
 
-scene.add(new THREE.AmbientLight(0xffffff,0.8));
+function fadeIn(audio,target=1,duration=2000){
+audio.play();
+let step=target/(duration/50);
+let interval=setInterval(()=>{
+audio.volume=Math.min(target,audio.volume+step);
+if(audio.volume>=target) clearInterval(interval);
+},50);
+}
 
-const sun = new THREE.DirectionalLight(0xffffff,0.6);
-sun.position.set(100,200,100);
-scene.add(sun);
+function fadeOut(audio,duration=2000){
+let step=audio.volume/(duration/50);
+let interval=setInterval(()=>{
+audio.volume=Math.max(0,audio.volume-step);
+if(audio.volume<=0){
+audio.pause();
+clearInterval(interval);
+}
+},50);
+}
 
-/* ================= COLLISION ================= */
+/* ================= START FLOW ================= */
 
-const colliders=[];
+fadeIn(titleMusic,1,2000);
+
+startBtn.onclick=()=>{
+fadeOut(titleMusic,1500);
+titleScreen.style.display="none";
+loadingScreen.style.display="flex";
+gameState="loading";
+
+setTimeout(()=>{
+loadingScreen.style.display="none";
+initGame();
+gameState="game";
+fadeIn(bgm,0.7,2000);
+},1500);
+};
+
+/* ================= THREE CORE ================= */
+
+let scene,camera,renderer,player;
+let colliders=[];
+let yaw=0,pitch=0;
+let keys={};
+let velocityY=0;
+let canJump=false;
+let prevTime=performance.now();
+
 function addCollider(mesh){
 mesh.userData.box=new THREE.Box3().setFromObject(mesh);
 colliders.push(mesh);
@@ -68,8 +134,7 @@ colliders.push(mesh);
 
 function checkCollision(pos){
 const box=new THREE.Box3().setFromCenterAndSize(
-pos,
-new THREE.Vector3(1.2,3,1.2)
+pos,new THREE.Vector3(1.2,3,1.2)
 );
 for(let obj of colliders){
 obj.userData.box.setFromObject(obj);
@@ -78,48 +143,61 @@ if(box.intersectsBox(obj.userData.box)) return true;
 return false;
 }
 
-/* ================= MATERIALS ================= */
-
-const matBlue = new THREE.MeshStandardMaterial({color:0x4aa8ff});
-const matRed = new THREE.MeshStandardMaterial({color:0xff7070});
-const matYellow = new THREE.MeshStandardMaterial({color:0xffe066});
-const matGreen = new THREE.MeshStandardMaterial({color:0x7dff9a});
-const matWhite = new THREE.MeshStandardMaterial({color:0xffffff});
-const matGray = new THREE.MeshStandardMaterial({color:0xdddddd});
-const matDark = new THREE.MeshStandardMaterial({color:0x444444});
-
-/* ================= FLOOR ================= */
-
-const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(300,300),
-matWhite
-);
-floor.rotation.x=-Math.PI/2;
-scene.add(floor);
-
-/* ================= WALL BUILDER ================= */
-
 function wall(x,y,z,w,h,d,mat){
 const mesh=new THREE.Mesh(
-new THREE.BoxGeometry(w,h,d),
-mat
+new THREE.BoxGeometry(w,h,d),mat
 );
 mesh.position.set(x,y,z);
 scene.add(mesh);
 addCollider(mesh);
-return mesh;
 }
 
-/* ================= SPAWN CORRIDOR ================= */
+/* ================= INIT GAME ================= */
 
+function initGame(){
+
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0xcfefff);
+scene.fog=new THREE.Fog(0xcfefff,80,300);
+
+camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
+
+renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+renderer.domElement.addEventListener("click",()=>{
+renderer.domElement.requestPointerLock();
+});
+
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,0.6);
+sun.position.set(100,200,100);
+scene.add(sun);
+
+/* Materials */
+const matBlue=new THREE.MeshStandardMaterial({color:0x4aa8ff});
+const matYellow=new THREE.MeshStandardMaterial({color:0xffe066});
+const matWhite=new THREE.MeshStandardMaterial({color:0xffffff});
+const matGray=new THREE.MeshStandardMaterial({color:0xcccccc});
+const matDark=new THREE.MeshStandardMaterial({color:0x333333});
+
+/* Floor */
+const floor=new THREE.Mesh(
+new THREE.PlaneGeometry(300,300),matWhite
+);
+floor.rotation.x=-Math.PI/2;
+scene.add(floor);
+
+/* Spawn Corridor */
 wall(0,5,40,10,10,1,matBlue);
 wall(-5,5,25,1,10,30,matYellow);
 wall(5,5,25,1,10,30,matYellow);
 wall(0,9,25,10,1,30,matWhite);
 
+/* Door */
 let mainDoor=new THREE.Mesh(
-new THREE.BoxGeometry(8,8,1),
-matDark
+new THREE.BoxGeometry(8,8,1),matDark
 );
 mainDoor.position.set(0,4,10);
 scene.add(mainDoor);
@@ -127,153 +205,21 @@ addCollider(mainDoor);
 
 let doorOpened=false;
 
-/* ================= MAIN ATRIUM ================= */
+/* Atrium outer */
+wall(0,5,-40,80,10,1,matBlue);
+wall(-40,5,0,1,10,80,matBlue);
+wall(40,5,0,1,10,80,matBlue);
+wall(0,9,0,80,1,80,matWhite);
 
-const atriumSize=80;
-
-// Outer walls (4 quadrants)
-wall(0,5,-atriumSize/2,atriumSize,10,1,matBlue);
-wall(-atriumSize/2,5,0,1,10,atriumSize,matRed);
-wall(atriumSize/2,5,0,1,10,atriumSize,matGreen);
-wall(0,9,0,atriumSize,1,atriumSize,matWhite);
-
-// Decorative stripe
-wall(0,4,-atriumSize/2+0.6,atriumSize,1,0.2,matYellow);
-
-/* ================= STRUCTURAL PILLARS ================= */
-
-function pillar(x,z){
-const p=new THREE.Mesh(
-new THREE.BoxGeometry(4,10,4),
-matGray
-);
-p.position.set(x,5,z);
-scene.add(p);
-addCollider(p);
-}
-
-pillar(-20,-20);
-pillar(20,-20);
-pillar(-20,20);
-pillar(20,20);
-
-/* ================= CENTER PLATFORM ================= */
-
-const platform=new THREE.Mesh(
-new THREE.CylinderGeometry(8,8,1,32),
-new THREE.MeshStandardMaterial({color:0xffcc66})
-);
-platform.position.set(0,0.5,0);
-scene.add(platform);
-addCollider(platform);
-
-const mascot=new THREE.Mesh(
-new THREE.ConeGeometry(4,10,32),
-new THREE.MeshStandardMaterial({color:0x00aaff})
-);
-mascot.position.set(0,6,0);
-scene.add(mascot);
-
-/* ================= RECEPTION ================= */
-
-wall(0,2,-15,20,4,4,matBlue);
-
-/* ================= BENCHES ================= */
-
-function bench(x,z){
-const b=new THREE.Mesh(
-new THREE.BoxGeometry(8,2,2),
-matYellow
-);
-b.position.set(x,1,z);
-scene.add(b);
-addCollider(b);
-}
-
-bench(-30,10);
-bench(30,10);
-bench(-30,-10);
-bench(30,-10);
-
-/* ================= TOY BLOCKS ================= */
-
-for(let i=0;i<12;i++){
-const block=new THREE.Mesh(
-new THREE.BoxGeometry(2,2,2),
-[new THREE.MeshStandardMaterial({color:0xff7070}),
- new THREE.MeshStandardMaterial({color:0x4aa8ff}),
- new THREE.MeshStandardMaterial({color:0xffe066}),
- new THREE.MeshStandardMaterial({color:0x7dff9a}),
- new THREE.MeshStandardMaterial({color:0xffffff}),
- new THREE.MeshStandardMaterial({color:0xffcc66})]
-);
-block.position.set(
-(Math.random()-0.5)*50,
-1,
-(Math.random()-0.5)*50
-);
-scene.add(block);
-addCollider(block);
-}
-
-/* ================= BALCONY ================= */
-
-const balcony=new THREE.Mesh(
-new THREE.BoxGeometry(60,1,60),
-matGray
-);
-balcony.position.set(0,12,0);
-scene.add(balcony);
-addCollider(balcony);
-
-// rails
-wall(0,14,-30,60,2,1,matYellow);
-wall(0,14,30,60,2,1,matYellow);
-wall(-30,14,0,1,2,60,matYellow);
-wall(30,14,0,1,2,60,matYellow);
-
-/* ================= RAMPS ================= */
-
-function ramp(xStart,zStart,dir){
-for(let i=0;i<20;i++){
-const rampPiece=new THREE.Mesh(
-new THREE.BoxGeometry(6,1,4),
-matGreen
-);
-rampPiece.position.set(
-xStart,
-i*0.6+1,
-zStart - i*3*dir
-);
-scene.add(rampPiece);
-addCollider(rampPiece);
-}
-}
-
-// symmetric ramps
-ramp(-25,20,1);
-ramp(25,20,1);
-
-/* ================= CEILING BEAMS ================= */
-
-for(let i=-40;i<=40;i+=20){
-const beam=new THREE.Mesh(
-new THREE.BoxGeometry(80,2,2),
-matBlue
-);
-beam.position.set(0,18,i);
-scene.add(beam);
-}
-
-/* ================= PLAYER ================= */
-
-const player=new THREE.Object3D();
-player.position.set(0,2,35);
+/* Player */
+player=new THREE.Object3D();
+player.position.set(0,2,35); // SAFE SPAWN
 scene.add(player);
 player.add(camera);
 
-let yaw=0,pitch=0;
+crosshair.style.display="block";
 
+/* Controls */
 document.addEventListener("mousemove",(e)=>{
 if(document.pointerLockElement===renderer.domElement){
 yaw-=e.movementX*0.002;
@@ -283,16 +229,6 @@ player.rotation.y=yaw;
 camera.rotation.x=pitch;
 }
 });
-
-/* ================= MOVEMENT ================= */
-
-let keys={};
-let velocityY=0;
-let gravity=30;
-let canJump=false;
-let moveSpeed=8;
-let sprintSpeed=14;
-let prevTime=performance.now();
 
 document.addEventListener("keydown",e=>keys[e.code]=true);
 document.addEventListener("keyup",e=>keys[e.code]=false);
@@ -319,7 +255,7 @@ if(keys["KeyA"]) moveDir.sub(right);
 if(keys["KeyD"]) moveDir.add(right);
 moveDir.normalize();
 
-let speed=keys["ShiftLeft"]?sprintSpeed:moveSpeed;
+let speed=keys["ShiftLeft"]?14:8;
 
 let newPos=player.position.clone();
 newPos.addScaledVector(moveDir,speed*delta);
@@ -329,7 +265,7 @@ player.position.x=newPos.x;
 player.position.z=newPos.z;
 }
 
-velocityY-=gravity*delta;
+velocityY-=30*delta;
 if(keys["Space"] && canJump){
 velocityY=12;
 canJump=false;
@@ -341,7 +277,6 @@ velocityY=0;
 canJump=true;
 }
 
-/* DOOR */
 if(!doorOpened && player.position.z<30){
 doorOpened=true;
 }
@@ -353,12 +288,15 @@ renderer.render(scene,camera);
 }
 animate();
 
-/* ================= RESIZE ================= */
+}
 
+/* Resize */
 window.addEventListener("resize",()=>{
+if(camera && renderer){
 camera.aspect=window.innerWidth/window.innerHeight;
 camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth,window.innerHeight);
+}
 });
 
 </script>
