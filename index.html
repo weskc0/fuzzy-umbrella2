@@ -7,61 +7,6 @@
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
 
-#titleScreen {
-position:absolute;
-width:100%;
-height:100%;
-background:radial-gradient(circle at center, #111 0%, #000 100%);
-color:white;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-z-index:300;
-text-align:center;
-}
-
-#titleScreen h1 {
-font-size:70px;
-letter-spacing:6px;
-margin:0;
-}
-
-#startBtn {
-margin-top:40px;
-padding:15px 50px;
-font-size:20px;
-cursor:pointer;
-background:white;
-border:none;
-}
-
-#loadingScreen {
-position:absolute;
-width:100%;
-height:100%;
-background:black;
-color:white;
-display:none;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-z-index:250;
-}
-
-#loadingBarContainer {
-width:400px;
-height:20px;
-background:#222;
-margin-top:20px;
-}
-
-#loadingBar {
-width:0%;
-height:100%;
-background:white;
-}
-
 #ui {
 position:absolute;
 bottom:20px;
@@ -69,134 +14,103 @@ left:20px;
 color:white;
 font-size:14px;
 opacity:0.8;
-display:none;
+}
+
+#crosshair {
+position:absolute;
+top:50%;
+left:50%;
+width:6px;
+height:6px;
+background:white;
+transform:translate(-50%,-50%);
+z-index:10;
 }
 </style>
 </head>
 <body>
 
-<div id="titleScreen">
-<h1>PROJECT PLAYCARE</h1>
-<button id="startBtn">Enter Playcare</button>
-</div>
-
-<div id="loadingScreen">
-<h2>Loading...</h2>
-<div id="loadingBarContainer">
-<div id="loadingBar"></div>
-</div>
-</div>
-
 <div id="ui">
-WASD Move | Shift Sprint | Space Jump | E Interact
+WASD Move | Shift Sprint | Space Jump | Click = GrabPack
 </div>
 
-<audio id="titleMusic" src="Title music.mp3" loop></audio>
-<audio id="bgm1" src="Bgm-1.mp3" loop></audio>
+<div id="crosshair"></div>
+
+<audio id="bgm1" src="Bgm-1.mp3" loop autoplay></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
 
-/* ================= AUDIO ================= */
+/* ================= BASIC SETUP ================= */
 
-const titleMusic = document.getElementById("titleMusic");
-const bgm1 = document.getElementById("bgm1");
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1e1f24);
 
-titleMusic.volume = 0.6;
-bgm1.volume = 0.5;
+const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
 
-window.addEventListener("load",()=>{
-titleMusic.play().catch(()=>{});
-});
-
-/* ================= TITLE FLOW ================= */
-
-const titleScreen = document.getElementById("titleScreen");
-const loadingScreen = document.getElementById("loadingScreen");
-const startBtn = document.getElementById("startBtn");
-const loadingBar = document.getElementById("loadingBar");
-const ui = document.getElementById("ui");
-
-startBtn.addEventListener("click",()=>{
-titleMusic.pause();
-titleMusic.currentTime=0;
-
-titleScreen.style.display="none";
-loadingScreen.style.display="flex";
-
-let progress=0;
-let loader=setInterval(()=>{
-progress+=10;
-loadingBar.style.width=progress+"%";
-if(progress>=100){
-clearInterval(loader);
-loadingScreen.style.display="none";
-initGame();
-}
-},150);
-});
-
-/* ================= GAME ================= */
-
-let scene, camera, renderer;
-let player;
-let colliders=[];
-let door;
-let doorOpen=false;
-
-function initGame(){
-
-bgm1.play();
-ui.style.display="block";
-
-scene=new THREE.Scene();
-scene.background=new THREE.Color(0x2c2f36);
-
-camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
-
-renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
+renderer.domElement.addEventListener("click",()=>{
+renderer.domElement.requestPointerLock();
+});
 
-const light=new THREE.PointLight(0xffffff,1,100);
-light.position.set(0,8,-10);
+/* ================= LIGHT ================= */
+
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+const light = new THREE.PointLight(0xffffff,1,200);
+light.position.set(0,10,0);
 scene.add(light);
 
-/* FLOOR */
-const floor=new THREE.Mesh(
+/* ================= TEXTURES ================= */
+
+const loader = new THREE.TextureLoader();
+
+const wallTex = loader.load("https://threejs.org/examples/textures/brick_diffuse.jpg");
+wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+wallTex.repeat.set(4,2);
+
+const floorTex = loader.load("https://threejs.org/examples/textures/hardwood2_diffuse.jpg");
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+floorTex.repeat.set(20,20);
+
+/* ================= FLOOR ================= */
+
+const floor = new THREE.Mesh(
 new THREE.PlaneGeometry(300,300),
-new THREE.MeshStandardMaterial({color:0x555555})
+new THREE.MeshStandardMaterial({map:floorTex})
 );
 floor.rotation.x=-Math.PI/2;
 scene.add(floor);
 
-/* COLLISION */
+/* ================= COLLISION ================= */
+
+const colliders=[];
 function addCollider(mesh){
 mesh.userData.box=new THREE.Box3().setFromObject(mesh);
 colliders.push(mesh);
 }
 
 function checkCollision(position){
-const playerBox=new THREE.Box3().setFromCenterAndSize(
+const box=new THREE.Box3().setFromCenterAndSize(
 position,
 new THREE.Vector3(1,3,1)
 );
 for(let obj of colliders){
 obj.userData.box.setFromObject(obj);
-if(playerBox.intersectsBox(obj.userData.box)){
-return true;
-}
+if(box.intersectsBox(obj.userData.box)) return true;
 }
 return false;
 }
 
-function wall(x,y,z,w,h,d,color=0x999999){
+/* ================= WALL BUILDER ================= */
+
+function wall(x,y,z,w,h,d){
 const mesh=new THREE.Mesh(
 new THREE.BoxGeometry(w,h,d),
-new THREE.MeshStandardMaterial({color})
+new THREE.MeshStandardMaterial({map:wallTex})
 );
 mesh.position.set(x,y,z);
 scene.add(mesh);
@@ -204,33 +118,31 @@ addCollider(mesh);
 return mesh;
 }
 
-/* SPAWN */
-wall(0,5,5,20,10,1);
-wall(-10,5,-5,1,10,20);
-wall(10,5,-5,1,10,20);
-wall(-6,5,-15,8,10,1);
-wall(6,5,-15,8,10,1);
-wall(0,9,-15,4,2,1);
+/* ================= ROOM ================= */
 
-/* DOOR */
-door=new THREE.Mesh(
-new THREE.BoxGeometry(4,8,0.8),
-new THREE.MeshStandardMaterial({color:0x3333aa})
+wall(0,5,10,20,10,1);
+wall(-10,5,0,1,10,20);
+wall(10,5,0,1,10,20);
+wall(0,9,0,20,1,20);
+wall(0,5,-10,20,10,1);
+
+/* ================= GRABBABLE OBJECT ================= */
+
+const box = new THREE.Mesh(
+new THREE.BoxGeometry(2,2,2),
+new THREE.MeshStandardMaterial({color:0x00aaff})
 );
-door.position.set(0,4,-15);
-scene.add(door);
-addCollider(door);
+box.position.set(0,1,-5);
+scene.add(box);
 
-/* PLAYER */
-player=new THREE.Object3D();
-player.position.set(0,2,0);
+let grabbableObjects=[box];
+
+/* ================= PLAYER ================= */
+
+const player=new THREE.Object3D();
+player.position.set(0,2,5);
 scene.add(player);
 player.add(camera);
-
-/* POINTER LOCK */
-renderer.domElement.addEventListener("click",()=>{
-renderer.domElement.requestPointerLock();
-});
 
 let yaw=0;
 let pitch=0;
@@ -245,29 +157,18 @@ camera.rotation.x=pitch;
 }
 });
 
-/* MOVEMENT FIXED */
+/* ================= MOVEMENT ================= */
 
 let keys={};
 let velocityY=0;
-let canJump=false;
 let gravity=30;
+let canJump=false;
 let moveSpeed=6;
 let sprintSpeed=10;
 let prevTime=performance.now();
 
-document.addEventListener("keydown",e=>{
-keys[e.code]=true;
-if(e.code==="KeyE") interact();
-});
+document.addEventListener("keydown",e=>keys[e.code]=true);
 document.addEventListener("keyup",e=>keys[e.code]=false);
-
-function interact(){
-if(!doorOpen && player.position.distanceTo(door.position)<4){
-doorOpen=true;
-scene.remove(door);
-colliders.splice(colliders.indexOf(door),1);
-}
-}
 
 function animate(){
 requestAnimationFrame(animate);
@@ -276,7 +177,6 @@ let time=performance.now();
 let delta=(time-prevTime)/1000;
 prevTime=time;
 
-/* Movement relative to camera direction */
 let forward=new THREE.Vector3();
 camera.getWorldDirection(forward);
 forward.y=0;
@@ -286,45 +186,68 @@ let right=new THREE.Vector3();
 right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
 
 let moveDir=new THREE.Vector3();
-
 if(keys["KeyW"]) moveDir.add(forward);
 if(keys["KeyS"]) moveDir.sub(forward);
 if(keys["KeyA"]) moveDir.sub(right);
 if(keys["KeyD"]) moveDir.add(right);
-
 moveDir.normalize();
 
-let speed=(keys["ShiftLeft"]||keys["ShiftRight"])?sprintSpeed:moveSpeed;
+let speed=(keys["ShiftLeft"])?sprintSpeed:moveSpeed;
 
 let newPos=player.position.clone();
 newPos.addScaledVector(moveDir,speed*delta);
-
 if(!checkCollision(newPos)){
 player.position.x=newPos.x;
 player.position.z=newPos.z;
 }
 
-/* Gravity */
 velocityY-=gravity*delta;
-
 if(keys["Space"] && canJump){
 velocityY=12;
 canJump=false;
 }
-
 player.position.y+=velocityY*delta;
-
 if(player.position.y<=2){
 player.position.y=2;
 velocityY=0;
 canJump=true;
 }
 
+/* ================= GRABPACK ================= */
+
 renderer.render(scene,camera);
 }
 animate();
 
+/* ================= GRAB LOGIC ================= */
+
+const raycaster=new THREE.Raycaster();
+
+document.addEventListener("mousedown",()=>{
+raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+const intersects=raycaster.intersectObjects(grabbableObjects);
+
+if(intersects.length>0){
+const obj=intersects[0].object;
+
+/* Pull object toward player */
+let pullInterval=setInterval(()=>{
+let dir=new THREE.Vector3();
+dir.subVectors(player.position,obj.position).normalize();
+obj.position.addScaledVector(dir,0.3);
+
+if(obj.position.distanceTo(player.position)<3){
+clearInterval(pullInterval);
 }
+},16);
+}
+});
+
+window.addEventListener("resize",()=>{
+camera.aspect=window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
+});
 
 </script>
 </body>
