@@ -2,17 +2,15 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Tutorial</title>
+<title>Project Playcare - Tutorial V2</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
 
 #overlay {
 position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
+top:0; left:0;
+width:100%; height:100%;
 background:black;
 color:white;
 display:flex;
@@ -67,7 +65,7 @@ WASD Move | Shift Sprint | Space Jump | F Flashlight | E Interact
 /* ================= SCENE ================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x202030);
+scene.background = new THREE.Color(0x303040);
 
 const camera = new THREE.PerspectiveCamera(
 75,
@@ -80,42 +78,39 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= LIGHTING (BRIGHT FOR TUTORIAL) ================= */
+/* ================= LIGHTING ================= */
 
-const ambient = new THREE.AmbientLight(0xffffff,0.6);
+const ambient = new THREE.AmbientLight(0xffffff,0.7);
 scene.add(ambient);
 
-const overhead = new THREE.DirectionalLight(0xffffff,0.6);
-overhead.position.set(10,20,10);
-scene.add(overhead);
+function ceilingLight(x,z){
+const light = new THREE.PointLight(0xffffff,0.8,50);
+light.position.set(x,8,z);
+scene.add(light);
 
-/* FLASHLIGHT (FIXED POSITION) */
+const bulb = new THREE.Mesh(
+new THREE.SphereGeometry(0.3),
+new THREE.MeshStandardMaterial({color:0xffffcc})
+);
+bulb.position.copy(light.position);
+scene.add(bulb);
+}
 
-const flashlight = new THREE.SpotLight(0xffffff,0);
-flashlight.angle = Math.PI/7;
-flashlight.penumbra = 0.4;
-flashlight.distance = 200;
-
-camera.add(flashlight);
-camera.add(flashlight.target);
-
-flashlight.position.set(0,0.5,-0.5);
-flashlight.target.position.set(0,0,-5);
-
-let flashlightOn = false;
+ceilingLight(0,-10);
+ceilingLight(0,-40);
 
 /* ================= FLOOR ================= */
 
 const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(500,500),
-new THREE.MeshStandardMaterial({color:0x555555})
+new THREE.PlaneGeometry(400,400),
+new THREE.MeshStandardMaterial({color:0x666666})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ================= BUILDING ================= */
+/* ================= BUILDING HELPERS ================= */
 
-function wall(x,y,z,w,h,d,color=0x888888){
+function wall(x,y,z,w,h,d,color=0x999999){
 const mesh = new THREE.Mesh(
 new THREE.BoxGeometry(w,h,d),
 new THREE.MeshStandardMaterial({color})
@@ -125,19 +120,39 @@ scene.add(mesh);
 return mesh;
 }
 
-/* Tutorial Room */
+/* ================= SPAWN ROOM ================= */
+
 wall(0,5,-20,30,10,1);
 wall(-15,5,-5,1,10,30);
 wall(15,5,-5,1,10,30);
 wall(0,10,-5,30,1,30);
+wall(0,0,-5,30,1,30);
 
-/* Corridor */
-wall(0,5,-60,20,10,1);
-wall(-10,5,-40,1,10,40);
-wall(10,5,-40,1,10,40);
+/* Close Back */
+wall(0,5,10,30,10,1);
 
-/* Locked Door */
-let door = wall(0,4,-60,6,8,1,0x3333aa);
+/* EXIT SIGN */
+const exitSign = new THREE.Mesh(
+new THREE.BoxGeometry(4,1,0.2),
+new THREE.MeshStandardMaterial({color:0x00ff00})
+);
+exitSign.position.set(0,8,-20.6);
+scene.add(exitSign);
+
+/* ================= CORRIDOR ================= */
+
+wall(-8,5,-40,1,10,40);
+wall(8,5,-40,1,10,40);
+wall(0,10,-40,16,1,40);
+
+/* ================= DOOR FRAME ================= */
+
+wall(-4,4,-60,1,8,1);
+wall(4,4,-60,1,8,1);
+wall(0,8,-60,8,1,1);
+
+/* Sliding Door */
+let door = wall(0,4,-60,6,8,0.5,0x3333aa);
 let doorOpen = false;
 
 /* ================= BATTERY ================= */
@@ -148,25 +163,25 @@ new THREE.MeshStandardMaterial({color:0xffff00})
 );
 battery.position.set(5,1,-30);
 scene.add(battery);
-let batteryCollected = false;
+let batteryCollected=false;
 
 /* ================= PLAYER ================= */
 
 const player = new THREE.Object3D();
-player.position.set(0,2,-10);
+player.position.set(0,2,0);
 scene.add(player);
 player.add(camera);
 
-let velocity = new THREE.Vector3();
-let direction = new THREE.Vector3();
+let velocity=new THREE.Vector3();
+let direction=new THREE.Vector3();
 
-let moveSpeed = 4;
-let sprintSpeed = 7;
-let gravity = 20;
-let jumpForce = 8;
+let moveSpeed=4;
+let sprintSpeed=7;
+let gravity=20;
+let jumpForce=8;
 
-let canJump = false;
-let keys = {};
+let canJump=false;
+let keys={};
 
 /* ================= INPUT ================= */
 
@@ -175,7 +190,7 @@ keys[e.code]=true;
 
 if(e.code==="KeyF"){
 flashlightOn=!flashlightOn;
-flashlight.intensity = flashlightOn ? 2 : 0;
+flashlight.intensity=flashlightOn?2:0;
 }
 
 if(e.code==="KeyE"){
@@ -185,42 +200,51 @@ interact();
 
 document.addEventListener("keyup",e=>keys[e.code]=false);
 
+/* ================= FLASHLIGHT ================= */
+
+const flashlight=new THREE.SpotLight(0xffffff,0);
+flashlight.angle=Math.PI/7;
+flashlight.distance=200;
+
+camera.add(flashlight);
+camera.add(flashlight.target);
+flashlight.position.set(0,0.5,-0.5);
+flashlight.target.position.set(0,0,-5);
+
+let flashlightOn=false;
+
 /* ================= INTERACTION ================= */
 
 function interact(){
 
-/* Battery Pickup */
 if(!batteryCollected &&
 player.position.distanceTo(battery.position)<3){
 batteryCollected=true;
 scene.remove(battery);
-document.getElementById("prompt").innerText="Battery Collected!";
-setTimeout(()=>document.getElementById("prompt").innerText="",2000);
+showPrompt("Battery Collected");
 }
 
-/* Door */
 if(!doorOpen &&
-player.position.distanceTo(door.position)<5){
+player.position.distanceTo(door.position)<4){
 
 if(batteryCollected){
-door.position.y+=20;
 doorOpen=true;
-document.getElementById("prompt").innerText="Door Powered!";
-setTimeout(()=>document.getElementById("prompt").innerText="",2000);
+showPrompt("Door Powered");
+}else{
+showPrompt("Door Needs Power");
 }
-else{
-document.getElementById("prompt").innerText="Door Needs Power.";
-setTimeout(()=>document.getElementById("prompt").innerText="",2000);
 }
-
 }
 
+function showPrompt(text){
+const p=document.getElementById("prompt");
+p.innerText=text;
+setTimeout(()=>p.innerText="",2000);
 }
 
 /* ================= POINTER LOCK ================= */
 
 const overlay=document.getElementById("overlay");
-
 overlay.addEventListener("click",()=>{
 renderer.domElement.requestPointerLock();
 });
@@ -285,9 +309,9 @@ player.position.y=2;
 canJump=true;
 }
 
-/* Flashlight subtle stability */
-if(flashlightOn){
-flashlight.intensity=2;
+/* Smooth sliding door */
+if(doorOpen && door.position.x<10){
+door.position.x+=10*delta;
 }
 
 /* Battery Spin */
