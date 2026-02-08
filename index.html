@@ -2,35 +2,76 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Arrival</title>
+<title>Project Playcare</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
 
-#overlay {
+/* ===== TITLE SCREEN ===== */
+#titleScreen {
 position:absolute;
-top:0; left:0;
-width:100%; height:100%;
+width:100%;
+height:100%;
 background:black;
 color:white;
 display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-font-size:32px;
-cursor:pointer;
-z-index:100;
+z-index:200;
 text-align:center;
 }
 
+#titleScreen h1 {
+font-size:60px;
+margin:0;
+}
+
+#startBtn {
+margin-top:30px;
+padding:15px 40px;
+font-size:20px;
+cursor:pointer;
+background:white;
+border:none;
+}
+
+/* ===== LOADING SCREEN ===== */
+#loadingScreen {
+position:absolute;
+width:100%;
+height:100%;
+background:black;
+color:white;
+display:none;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+z-index:150;
+}
+
+#loadingBarContainer {
+width:400px;
+height:20px;
+background:#333;
+margin-top:20px;
+}
+
+#loadingBar {
+width:0%;
+height:100%;
+background:white;
+}
+
+/* ===== GAME UI ===== */
 #ui {
 position:absolute;
 bottom:20px;
 left:20px;
 color:white;
-font-size:16px;
-z-index:50;
+font-size:14px;
 opacity:0.8;
+display:none;
 }
 
 #prompt {
@@ -39,77 +80,138 @@ top:20px;
 left:50%;
 transform:translateX(-50%);
 color:white;
-font-size:20px;
-z-index:50;
+font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<div id="overlay">
-PROJECT PLAYCARE<br>
-<div style="font-size:18px; opacity:0.6; margin-top:15px;">
-Train Crash Detected...<br><br>
-Click To Wake Up
+<!-- TITLE -->
+<div id="titleScreen">
+<h1>PROJECT PLAYCARE</h1>
+<button id="startBtn">Start Game</button>
+</div>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+<h2>Loading...</h2>
+<div id="loadingBarContainer">
+<div id="loadingBar"></div>
 </div>
 </div>
 
 <div id="ui">
-WASD Move | Shift Sprint | Space Jump | F Flashlight | E Interact
+WASD Move | Shift Sprint | Space Jump | E Interact
 </div>
 
 <div id="prompt"></div>
+
+<!-- MUSIC -->
+<audio id="titleMusic" src="Title music.mp3" loop></audio>
+<audio id="bgm1" src="Bgm-1.mp3" loop></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
 
-/* ================= SCENE ================= */
+/* ================= TITLE LOGIC ================= */
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x2a2a30);
+const titleScreen = document.getElementById("titleScreen");
+const loadingScreen = document.getElementById("loadingScreen");
+const startBtn = document.getElementById("startBtn");
+const loadingBar = document.getElementById("loadingBar");
+const ui = document.getElementById("ui");
 
-const camera = new THREE.PerspectiveCamera(
-75,
-window.innerWidth/window.innerHeight,
-0.1,
-3000
-);
+const titleMusic = document.getElementById("titleMusic");
+const bgm1 = document.getElementById("bgm1");
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-document.body.appendChild(renderer.domElement);
+titleMusic.volume = 0.6;
+bgm1.volume = 0.5;
 
-/* ================= LIGHTING ================= */
+/* Autoplay after interaction */
+startBtn.addEventListener("click", () => {
 
-const ambient = new THREE.AmbientLight(0xffffff,0.6);
-scene.add(ambient);
+titleMusic.play();
 
-function ceilingLight(x,y,z,color=0xffffff,intensity=1){
-const light = new THREE.PointLight(color,intensity,60);
-light.position.set(x,y,z);
-scene.add(light);
+titleScreen.style.display = "none";
+loadingScreen.style.display = "flex";
 
-const bulb = new THREE.Mesh(
-new THREE.SphereGeometry(0.4),
-new THREE.MeshStandardMaterial({color})
-);
-bulb.position.copy(light.position);
-scene.add(bulb);
+let progress = 0;
+
+let loadInterval = setInterval(() => {
+progress += Math.random() * 15;
+if(progress >= 100){
+progress = 100;
+clearInterval(loadInterval);
+
+setTimeout(()=>{
+loadingScreen.style.display = "none";
+initGame();
+},500);
 }
 
-ceilingLight(0,8,-15,0xffe6aa,1);
+loadingBar.style.width = progress + "%";
 
-/* ================= FLOOR ================= */
+},200);
 
+});
+
+/* ================= GAME SETUP ================= */
+
+let scene, camera, renderer;
+let player;
+let colliders = [];
+let door;
+let doorOpen = false;
+
+function initGame(){
+
+bgm1.play();
+ui.style.display = "block";
+
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2c2f36);
+
+camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+
+renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* LIGHT */
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const light = new THREE.PointLight(0xffffff,1,100);
+light.position.set(0,8,-10);
+scene.add(light);
+
+/* FLOOR */
 const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(800,800),
+new THREE.PlaneGeometry(300,300),
 new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ================= WALL HELPER ================= */
+/* COLLISION SYSTEM */
+function addCollider(mesh){
+mesh.geometry.computeBoundingBox();
+mesh.userData.box = new THREE.Box3().setFromObject(mesh);
+colliders.push(mesh);
+}
+
+function checkCollision(position){
+const playerBox = new THREE.Box3().setFromCenterAndSize(
+position,
+new THREE.Vector3(1.2,3,1.2)
+);
+for(let obj of colliders){
+obj.userData.box.setFromObject(obj);
+if(playerBox.intersectsBox(obj.userData.box)){
+return true;
+}
+}
+return false;
+}
 
 function wall(x,y,z,w,h,d,color=0x999999){
 const mesh = new THREE.Mesh(
@@ -118,182 +220,74 @@ new THREE.MeshStandardMaterial({color})
 );
 mesh.position.set(x,y,z);
 scene.add(mesh);
+addCollider(mesh);
 return mesh;
 }
 
-/* ================= SPAWN ROOM ================= */
-
-wall(0,5,-15,20,10,1);
+/* SPAWN ROOM */
+wall(0,5,5,20,10,1);
 wall(-10,5,-5,1,10,20);
 wall(10,5,-5,1,10,20);
-wall(0,10,-5,20,1,20);
-wall(0,0,-5,20,1,20);
-wall(0,5,5,20,10,1);
+wall(-6,5,-15,8,10,1);
+wall(6,5,-15,8,10,1);
+wall(0,9,-15,4,2,1);
 
-/* Red crash light behind player */
-let crashLight = new THREE.PointLight(0xff0000,1,30);
-crashLight.position.set(0,4,6);
-scene.add(crashLight);
-
-/* Flicker */
-setInterval(()=>{
-crashLight.intensity = 0.5 + Math.random();
-},120);
-
-/* ================= EXIT ARROWS ================= */
-
-function arrow(x,z){
-const mesh = new THREE.Mesh(
-new THREE.PlaneGeometry(3,3),
-new THREE.MeshBasicMaterial({color:0x00ff00, side:THREE.DoubleSide})
+/* DOOR */
+door = new THREE.Mesh(
+new THREE.BoxGeometry(4,8,0.8),
+new THREE.MeshStandardMaterial({color:0x3333aa})
 );
-mesh.rotation.x = -Math.PI/2;
-mesh.position.set(x,0.05,z);
-scene.add(mesh);
-}
+door.position.set(0,4,-15);
+scene.add(door);
+addCollider(door);
 
-arrow(0,-5);
-arrow(0,-10);
+/* HALLWAY */
+wall(-4,5,-35,1,10,40,0x777777);
+wall(4,5,-35,1,10,40,0x777777);
+wall(0,10,-35,8,1,40,0x777777);
 
-/* ================= DOOR ================= */
-
-wall(-3,4,-15,1,8,1);
-wall(3,4,-15,1,8,1);
-wall(0,8,-15,6,1,1);
-
-let door = wall(0,4,-15,4,8,0.5,0x3333aa);
-let doorOpen=false;
-
-/* ================= TRANSITION TUNNEL ================= */
-
-wall(-5,5,-35,1,10,40,0x777777);
-wall(5,5,-35,1,10,40,0x777777);
-wall(0,10,-35,10,1,40,0x777777);
-
-ceilingLight(0,8,-30,0xffffff,0.7);
-
-/* ================= PLAYCARE ATRIUM ================= */
-
-wall(-40,10,-90,1,20,80,0xaaaaaa);
-wall(40,10,-90,1,20,80,0xaaaaaa);
-wall(0,20,-90,80,1,80,0xaaaaaa);
-
-/* Big sign */
-const sign = new THREE.Mesh(
-new THREE.BoxGeometry(20,4,1),
-new THREE.MeshStandardMaterial({color:0x00aaff})
-);
-sign.position.set(0,15,-110);
-scene.add(sign);
-
-ceilingLight(0,18,-90,0x66ccff,1.5);
-
-/* Colored floor section */
-const atriumFloor = new THREE.Mesh(
-new THREE.PlaneGeometry(60,60),
-new THREE.MeshStandardMaterial({color:0x445566})
-);
-atriumFloor.rotation.x = -Math.PI/2;
-atriumFloor.position.z = -90;
-scene.add(atriumFloor);
-
-/* ================= BATTERY ================= */
-
-let battery = new THREE.Mesh(
-new THREE.BoxGeometry(1,1,1),
-new THREE.MeshStandardMaterial({color:0xffff00})
-);
-battery.position.set(4,1,-25);
-scene.add(battery);
-let batteryCollected=false;
-
-/* ================= PLAYER ================= */
-
-const player = new THREE.Object3D();
+/* PLAYER */
+player = new THREE.Object3D();
 player.position.set(0,2,0);
 scene.add(player);
 player.add(camera);
 
-let velocity=new THREE.Vector3();
-let direction=new THREE.Vector3();
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
 
-let moveSpeed=4;
-let sprintSpeed=7;
-let gravity=20;
-let jumpForce=8;
-
+let moveSpeed=5;
+let sprintSpeed=8;
+let gravity=25;
+let jumpForce=10;
 let canJump=false;
 let keys={};
 
-/* ================= INPUT ================= */
-
-document.addEventListener("keydown",e=>{
+document.addEventListener("keydown", e=>{
 keys[e.code]=true;
 if(e.code==="KeyE") interact();
 });
-
-document.addEventListener("keyup",e=>keys[e.code]=false);
-
-/* ================= INTERACTION ================= */
+document.addEventListener("keyup", e=>keys[e.code]=false);
 
 function interact(){
-
-if(!batteryCollected &&
-player.position.distanceTo(battery.position)<3){
-batteryCollected=true;
-scene.remove(battery);
-showPrompt("Battery Collected");
-}
-
-if(!doorOpen &&
-player.position.distanceTo(door.position)<4){
-if(batteryCollected){
+if(!doorOpen && player.position.distanceTo(door.position)<4){
 doorOpen=true;
-showPrompt("Door Powered");
-}else{
-showPrompt("Door Needs Power");
-}
+scene.remove(door);
+colliders.splice(colliders.indexOf(door),1);
 }
 }
 
-function showPrompt(text){
-const p=document.getElementById("prompt");
-p.innerText=text;
-setTimeout(()=>p.innerText="",2000);
-}
-
-/* ================= POINTER LOCK ================= */
-
-const overlay=document.getElementById("overlay");
-overlay.addEventListener("click",()=>{
+/* POINTER LOCK */
 renderer.domElement.requestPointerLock();
-});
-
-document.addEventListener("pointerlockchange",()=>{
-if(document.pointerLockElement===renderer.domElement){
-overlay.style.display="none";
-}
-});
-
-/* ================= MOUSE LOOK ================= */
-
-let yaw=0;
-let pitch=0;
-
 document.addEventListener("mousemove",(event)=>{
 if(document.pointerLockElement===renderer.domElement){
-yaw-=event.movementX*0.002;
-pitch-=event.movementY*0.002;
-pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
-player.rotation.y=yaw;
-camera.rotation.x=pitch;
+player.rotation.y -= event.movementX*0.002;
+camera.rotation.x -= event.movementY*0.002;
+camera.rotation.x = Math.max(-Math.PI/2,Math.min(Math.PI/2,camera.rotation.x));
 }
 });
 
-/* ================= MOVEMENT ================= */
-
+/* GAME LOOP */
 let prevTime=performance.now();
-
 function animate(){
 requestAnimationFrame(animate);
 
@@ -310,37 +304,29 @@ direction.normalize();
 
 let speed=(keys["ShiftLeft"]||keys["ShiftRight"])?sprintSpeed:moveSpeed;
 
-velocity.x=direction.x*speed;
-velocity.z=direction.z*speed;
-velocity.y-=gravity*delta;
+let newPos = player.position.clone();
 
-if(keys["Space"]&&canJump){
-velocity.y=jumpForce;
+newPos.x += direction.x*speed*delta;
+if(!checkCollision(newPos)) player.position.x = newPos.x;
+
+newPos = player.position.clone();
+newPos.z += direction.z*speed*delta;
+if(!checkCollision(newPos)) player.position.z = newPos.z;
+
+velocity.y -= gravity*delta;
+if(keys["Space"] && canJump){
+velocity.y = jumpForce;
 canJump=false;
 }
-
-player.translateX(velocity.x*delta);
-player.translateZ(velocity.z*delta);
-player.position.y+=velocity.y*delta;
-
+player.position.y += velocity.y*delta;
 if(player.position.y<2){
-velocity.y=0;
 player.position.y=2;
+velocity.y=0;
 canJump=true;
-}
-
-/* Slide door */
-if(doorOpen && door.position.x<8){
-door.position.x+=8*delta;
-}
-
-if(!batteryCollected){
-battery.rotation.y+=2*delta;
 }
 
 renderer.render(scene,camera);
 }
-
 animate();
 
 window.addEventListener("resize",()=>{
@@ -348,6 +334,8 @@ camera.aspect=window.innerWidth/window.innerHeight;
 camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth,window.innerHeight);
 });
+
+}
 
 </script>
 </body>
