@@ -123,6 +123,7 @@ WASD – move
 Mouse – look
 SPACE – jump
 E – interact
+F – flashlight
   </p>
   <button id="startBtn">START</button>
 </div>
@@ -154,10 +155,10 @@ E – interact
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
-// ===== BASIC SETUP =====
+// ===== GLOBALS =====
 let scene,camera,renderer;
-let player; // Object3D carrying camera
-let state="intro"; // intro, lobby, power_room, fuses, make_friend, chase, catwalks, poppy, dead, credits
+let player;
+let state="intro"; // lobby, power_room, fuses, make_friend, chase, catwalks, poppy, dead, credits
 let keys={};
 let yaw=0,pitch=0;
 let velY=0;
@@ -165,6 +166,7 @@ let huggy=null;
 let huggyChaseActive=false;
 let crate=null;
 let poppyCase=null;
+let flashlight, flashlightOn=true;
 
 let inventory={
   grabpackHands:0,
@@ -172,6 +174,9 @@ let inventory={
   toyCrafted:false
 };
 
+const collisionBoxes=[]; // Box3s for walls/floors
+
+// UI
 const titleUI=document.getElementById("title");
 const gameOverUI=document.getElementById("gameOver");
 const creditsUI=document.getElementById("credits");
@@ -180,6 +185,7 @@ const info=document.getElementById("info");
 const crosshair=document.getElementById("crosshair");
 const jumpscare=document.getElementById("jumpscare");
 
+// Audio
 const titleMusic=document.getElementById("titleMusic");
 const hallMusic=document.getElementById("hallMusic");
 const chaseMusic=document.getElementById("chaseMusic");
@@ -206,17 +212,18 @@ function stopAllMusic(){
   [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
 
-// pointer lock controls style
+// Intro music
+fadeIn(titleMusic,.8);
+
+// Buttons
 const startBtn=document.getElementById("startBtn");
 const retryBtn=document.getElementById("retryBtn");
-
-fadeIn(titleMusic,.8);
 
 startBtn.onclick=()=>{
   fadeOut(titleMusic,1000);
   titleUI.style.display="none";
   initScene();
-  setState("lobby"); // intro text is handled as overlay instead of a separate state for this skeleton
+  setState("lobby");
 };
 
 retryBtn.onclick=()=>{
@@ -242,14 +249,15 @@ function triggerJumpscareAndDeath(){
   },600);
 }
 
-// ===== THREE INIT =====
+// ===== THREE SETUP =====
 function initScene(){
   scene=new THREE.Scene();
-  scene.fog=new THREE.Fog(0x000000,10,120);
+  scene.fog=new THREE.Fog(0x111118,15,120); // darker bluish fog, still readable [web:43]
 
   camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,2000);
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
   document.body.appendChild(renderer.domElement);
 
   renderer.domElement.requestPointerLock=
@@ -257,11 +265,24 @@ function initScene(){
     renderer.domElement.mozRequestPointerLock;
   renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
 
-  scene.add(new THREE.AmbientLight(0x202030,0.4));
-  const flashlight=new THREE.SpotLight(0xffffff,1.4,40,Math.PI/7,0.5);
+  // Lights: brighter but abandoned
+  const ambient=new THREE.AmbientLight(0x404050,0.5); // soft cool ambient [web:43][web:45]
+  scene.add(ambient);
+
+  flashlight=new THREE.SpotLight(0xffffff,2.2,60,Math.PI/8,0.4);
   flashlight.castShadow=true;
+  flashlight.position.set(0,0,0);
   camera.add(flashlight);
   scene.add(camera);
+
+  // Some overhead factory lights (cool/desaturated)
+  const overhead1=new THREE.PointLight(0x88aaff,0.7,40);
+  overhead1.position.set(0,7,0);
+  scene.add(overhead1);
+
+  const overhead2=new THREE.PointLight(0x6688aa,0.6,40);
+  overhead2.position.set(0,7,-40);
+  scene.add(overhead2);
 
   player=new THREE.Object3D();
   player.position.set(0,2,10);
@@ -271,7 +292,7 @@ function initScene(){
   crosshair.style.display="block";
 
   document.addEventListener("mousemove",onMouseMove);
-  document.addEventListener("keydown",e=>{keys[e.code]=true; if(e.code==="KeyE")tryInteract();});
+  document.addEventListener("keydown",onKeyDown);
   document.addEventListener("keyup",e=>{keys[e.code]=false;});
 
   window.addEventListener("resize",()=>{
@@ -280,50 +301,74 @@ function initScene(){
     renderer.setSize(innerWidth,innerHeight);
   });
 
-  buildSharedGeometry();
+  buildGeometry();
   animate();
 }
 
-// ===== GEOMETRY HELPERS =====
-const wallMat=new THREE.MeshStandardMaterial({color:0x222244});
-const floorMat=new THREE.MeshStandardMaterial({color:0x111122});
-const accentMat=new THREE.MeshStandardMaterial({color:0x5555ff});
+function onKeyDown(e){
+  keys[e.code]=true;
+  if(e.code==="KeyE")tryInteract();
+  if(e.code==="KeyF"){
+    flashlightOn=!flashlightOn;
+    flashlight.visible=flashlightOn;
+  }
+}
+
+// ===== GEOMETRY & COLLISION =====
+const collisionMeshes=[];
+
+const wallMat=new THREE.MeshStandardMaterial({color:0x202434,roughness:0.8,metalness:0.1});
+const floorMat=new THREE.MeshStandardMaterial({color:0x181a24,roughness:0.9});
+const accentMat=new THREE.MeshStandardMaterial({color:0x5555ff,roughness:0.6});
 const huggyMat=new THREE.MeshStandardMaterial({color:0x003366});
 
+function addCollisionBoxFromMesh(mesh){
+  const box=new THREE.Box3().setFromObject(mesh);
+  collisionBoxes.push(box);
+  collisionMeshes.push(mesh);
+}
+
 function makeRoom(group,width,depth,height=6){
+  // Floor
   const floor=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),floorMat);
   floor.position.set(0,0,0);
   floor.receiveShadow=true;
   group.add(floor);
+  addCollisionBoxFromMesh(floor);
 
+  // Ceiling
   const ceiling=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),wallMat);
   ceiling.position.set(0,height,0);
   group.add(ceiling);
+  // (no collision needed for ceiling)
 
   const wallF=new THREE.Mesh(new THREE.BoxGeometry(width,height,0.2),wallMat);
   wallF.position.set(0,height/2,-depth/2);
   group.add(wallF);
+  addCollisionBoxFromMesh(wallF);
 
   const wallB=wallF.clone();
   wallB.position.z=depth/2;
   group.add(wallB);
+  addCollisionBoxFromMesh(wallB);
 
   const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.2,height,depth),wallMat);
   wallL.position.set(-width/2,height/2,0);
   group.add(wallL);
+  addCollisionBoxFromMesh(wallL);
 
   const wallR=wallL.clone();
   wallR.position.x=width/2;
   group.add(wallR);
+  addCollisionBoxFromMesh(wallR);
 }
 
-// ===== BUILD STATIC LAYOUT (LOBBY, HALLS, MAKE-A-FRIEND, VENTS, CATWALKS, POPPY) =====
 let lobbyGroup, makeFriendGroup, ventGroup, catwalkGroup, poppyGroup;
 let lobbyDoorNext=null;
 let makeFriendGate=null;
 
-function buildSharedGeometry(){
-  // Lobby
+function buildGeometry(){
+  // LOBBY
   lobbyGroup=new THREE.Group();
   makeRoom(lobbyGroup,30,30,8);
   lobbyGroup.position.set(0,0,0);
@@ -334,6 +379,7 @@ function buildSharedGeometry(){
   huggyHead.position.y=5.5;
   huggyBody.add(huggyHead);
   huggyBody.position.set(0,4,-5);
+  huggyBody.castShadow=true;
   lobbyGroup.add(huggyBody);
   huggy=huggyBody;
 
@@ -346,8 +392,9 @@ function buildSharedGeometry(){
   lobbyDoorNext.position.set(0,3,-15);
   lobbyDoorNext.userData.type="door_to_factory";
   scene.add(lobbyDoorNext);
+  addCollisionBoxFromMesh(lobbyDoorNext);
 
-  // Make-A-Friend simplified
+  // MAKE-A-FRIEND
   makeFriendGroup=new THREE.Group();
   makeRoom(makeFriendGroup,40,40,10);
   makeFriendGroup.position.set(0,0,-80);
@@ -355,6 +402,7 @@ function buildSharedGeometry(){
 
   const belt=new THREE.Mesh(new THREE.BoxGeometry(20,0.5,3),new THREE.MeshStandardMaterial({color:0x333333}));
   belt.position.set(0,0.6,0);
+  belt.receiveShadow=true;
   makeFriendGroup.add(belt);
 
   const powerNode1=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffaa00}));
@@ -374,33 +422,56 @@ function buildSharedGeometry(){
   makeFriendGate.position.set(0,3,20);
   makeFriendGate.userData.type="toy_gate";
   makeFriendGroup.add(makeFriendGate);
+  addCollisionBoxFromMesh(makeFriendGate);
 
-  // Vents – straight corridor for now
+  // VENTS
   ventGroup=new THREE.Group();
   makeRoom(ventGroup,8,60,5);
   ventGroup.position.set(0,0,-140);
   scene.add(ventGroup);
 
-  // Catwalks + crate
+  // CATWALKS
   catwalkGroup=new THREE.Group();
   const catFloor=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,40),new THREE.MeshStandardMaterial({color:0x444444}));
   catFloor.position.set(0,5,-190);
+  catFloor.receiveShadow=true;
   catwalkGroup.add(catFloor);
+  addCollisionBoxFromMesh(catFloor);
+
   crate=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),new THREE.MeshStandardMaterial({color:0x666666}));
   crate.position.set(0,10,-200);
+  crate.castShadow=true;
   crate.userData.type="crate";
   catwalkGroup.add(crate);
   scene.add(catwalkGroup);
 
-  // Poppy room
+  // POPPY ROOM
   poppyGroup=new THREE.Group();
   makeRoom(poppyGroup,20,20,8);
   poppyGroup.position.set(0,0,-240);
+  scene.add(poppyGroup);
+
   poppyCase=new THREE.Mesh(new THREE.BoxGeometry(3,5,3),new THREE.MeshStandardMaterial({color:0x9999ff,transparent:true,opacity:0.3}));
   poppyCase.position.set(0,3,-5);
   poppyCase.userData.type="poppy_case";
   poppyGroup.add(poppyCase);
-  scene.add(poppyGroup);
+}
+
+// ===== COLLISION RESOLUTION =====
+function resolveCollisions(nextPos,radius=0.6){
+  for(const box of collisionBoxes){
+    const expanded=box.clone();
+    expanded.min.x-=radius;
+    expanded.max.x+=radius;
+    expanded.min.z-=radius;
+    expanded.max.z+=radius;
+    expanded.min.y=-Infinity;
+    expanded.max.y=Infinity;
+    if(expanded.containsPoint(nextPos)){
+      return false;
+    }
+  }
+  return true;
 }
 
 // ===== STATE MACHINE =====
@@ -413,17 +484,6 @@ function setState(newState){
       info.textContent="Hands: 0 | Fuses: 0 | Toy: no";
       stopAllMusic();
       fadeIn(hallMusic,.7);
-      break;
-    case "power_room":
-      hud.textContent="POWER ROOM\n(Stub) Imagine rerouting electricity.\nThen return to the lobby.";
-      break;
-    case "fuses":
-      hud.textContent="FUSE AREA\n(Stub) Collect fuses and restore power.\nThen you get the red hand.";
-      inventory.grabpackHands=2;
-      info.textContent=`Hands: ${inventory.grabpackHands} | Fuses: 4 | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-      break;
-    case "make_friend":
-      hud.textContent="MAKE-A-FRIEND\nPower all nodes to start the machine.\nThen grab the toy and open the gate.";
       break;
     case "chase":
       hud.textContent="VENT CHASE\nRun. If Huggy catches you, you die.";
@@ -449,7 +509,7 @@ function setState(newState){
   }
 }
 
-// ===== INPUT / MOVEMENT =====
+// ===== INPUT / INTERACT =====
 function onMouseMove(e){
   if(document.pointerLockElement!==renderer?.domElement)return;
   yaw-=e.movementX*0.002;
@@ -462,13 +522,16 @@ function onMouseMove(e){
 function tryInteract(){
   if(state==="dead"||state==="credits")return;
   const pos=player.position;
-  // Very rough interaction distances
+
   // Lobby tape
   lobbyGroup?.traverse(o=>{
     if(o.userData.type==="tape_lobby" && o.position.distanceTo(pos)<2){
-      hud.textContent="LOBBY\nTape: \"Please obey company policies.\"\nSecurity Office unlocked. (Stub)";
+      hud.textContent="LOBBY\nLeith Pierre warns you.\nSecurity is \"watching\".\n(Stub) The next door unlocks.";
+      info.textContent="Hands: 1 | Fuses: 0 | Toy: no";
+      inventory.grabpackHands=1;
     }
   });
+
   // Poppy case
   if(poppyCase && poppyCase.position.clone().add(poppyGroup.position).distanceTo(pos)<3 && state==="poppy"){
     creditsUI.style.display="flex";
@@ -476,18 +539,18 @@ function tryInteract(){
   }
 }
 
-// ===== MAIN ANIMATION LOOP =====
+// ===== MAIN LOOP =====
 function animate(){
   requestAnimationFrame(animate);
   if(!scene)return;
   const dt=0.016;
 
   if(state!=="dead" && state!=="credits"){
-    // movement
-    let forward=new THREE.Vector3();
+    // movement with collision
+    const forward=new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.y=0;forward.normalize();
-    let right=new THREE.Vector3();
+    const right=new THREE.Vector3();
     right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
 
     let move=new THREE.Vector3();
@@ -497,34 +560,27 @@ function animate(){
     if(keys["KeyD"])move.add(right);
     if(move.lengthSq()>0)move.normalize();
 
-    player.position.addScaledVector(move,6*dt);
+    const speed=6;
+    const intendedMove=move.clone().multiplyScalar(speed*dt);
+    const nextPos=player.position.clone().add(intendedMove);
+
+    if(resolveCollisions(nextPos,0.6)){
+      player.position.copy(nextPos);
+    }
 
     velY-=25*dt;
     if(keys["Space"] && player.position.y<=2.01)velY=10;
-    player.position.y+=velY*dt;
-    if(player.position.y<2){player.position.y=2;velY=0;}
+    let nextY=player.position.y+velY*dt;
+    if(nextY<2){nextY=2;velY=0;}
+    player.position.y=nextY;
 
-    // Simple state transitions (very approximate)
+    // simple flow between states
     if(state==="lobby"){
       if(player.position.z<-12){
-        setState("power_room");
-      }
-    }else if(state==="power_room"){
-      if(player.position.z>8){
-        // leave power room → Huggy gone, go toward factory halls
-        setState("fuses");
-      }
-    }else if(state==="fuses"){
-      if(player.position.z<-40){
-        setState("make_friend");
-      }
-    }else if(state==="make_friend"){
-      if(player.position.z<-100){
-        setState("chase");
+        setState("chase"); // direct to chase for now
       }
     }else if(state==="chase"){
       if(player.position.z<-160){
-        // reached end of vents without dying
         setState("catwalks");
         stopAllMusic();
         fadeIn(chaseMusic,.9);
@@ -535,7 +591,7 @@ function animate(){
       }
     }
 
-    // Simple Huggy chase in vent state
+    // Huggy chase – simple
     if(state==="chase" && huggy && huggyChaseActive){
       const target=player.position.clone();
       const pos=huggy.position;
