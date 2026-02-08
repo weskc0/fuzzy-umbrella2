@@ -107,6 +107,22 @@ button:hover{
   text-shadow:0 0 4px #000;
   z-index:5;
 }
+
+/* Jumpscare overlay */
+#jumpscare{
+  position:absolute;
+  inset:0;
+  background:black;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:25;
+}
+#jumpscare img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
 </style>
 </head>
 <body>
@@ -139,10 +155,18 @@ Mouse – look
 <div id="hudText"></div>
 <div id="infoText"></div>
 
+<!-- Jumpscare overlay (use your own image if you like) -->
+<div id="jumpscare">
+  <!-- Optional placeholder image. Replace src or remove <img> if you only want flash + sound. -->
+  <!-- <img src="catnap_jumpscare.png" alt="CatNap"> -->
+</div>
+
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
 <audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
 <audio id="bossMusic" src="chase music.mp3" loop></audio>
 <audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
+<!-- Optional jumpscare sound -->
+<audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
@@ -171,12 +195,14 @@ const crosshair=document.getElementById("crosshair")
 const flash=document.getElementById("flash")
 const hudText=document.getElementById("hudText")
 const infoText=document.getElementById("infoText")
+const jumpscare=document.getElementById("jumpscare")
 
 // Audio refs
 const titleMusic=document.getElementById("titleMusic")
 const hallMusic=document.getElementById("hallMusic")
 const bossMusic=document.getElementById("bossMusic")
 const protoMusic=document.getElementById("protoMusic")
+const jumpscareSound=document.getElementById("jumpscareSound")
 
 function fadeIn(a,v=1,d=2000){
   a.volume=0
@@ -205,6 +231,28 @@ document.getElementById("start").onclick=()=>{
   fadeOut(titleMusic)
   titleUI.style.display="none"
   init()
+}
+
+// ===== JUMPSCARE LOGIC =====
+let jumpscareCooldown = 0; // small cooldown so it isn't constant spam
+
+function triggerJumpscare(){
+  const now = performance.now();
+  if (now - jumpscareCooldown < 400) return; // cooldown ~0.4s
+
+  jumpscareCooldown = now;
+
+  // show overlay briefly
+  jumpscare.style.display="flex";
+  flash.style.opacity=1;
+  if(jumpscareSound){
+    jumpscareSound.currentTime=0;
+    jumpscareSound.play().catch(()=>{});
+  }
+  setTimeout(()=>{
+    jumpscare.style.display="none";
+    flash.style.opacity=0;
+  }, 220); // quick scare
 }
 
 // ===== INIT SCENE =====
@@ -247,7 +295,6 @@ function init(){
   }
 
   // ===== HALLWAY =====
-  // Lengthened a bit for buildup
   floor(0,-70,20,240)
   wall(-10,5,-70,1,10,240)
   wall(10,5,-70,1,10,240)
@@ -294,7 +341,7 @@ function init(){
   protoDoor.position.set(0,4,-280)
   scene.add(protoDoor)
 
-  // Prototype room floor & walls (simple)
+  // Prototype room floor & walls
   floor(0,-295,40,40)
   wall(-20,5,-295,1,10,40)
   wall(20,5,-295,1,10,40)
@@ -417,18 +464,19 @@ function animate(){
     dir.y=0
     let dist=dir.length()
     if(dist>0.01)dir.normalize()
-    // Slower in hall, faster in arena
     let speed=(state==="hall")?5:7
     catnap.position.addScaledVector(dir,speed*delta)
     catnap.lookAt(player.position)
 
     if(dist<3){
-      // Only tick health when very close
+      // Damage + jumpscare every time he hits you
+      const previousHealth = health
       health-=0.9
       if(health<0)health=0
+      if(health<previousHealth){
+        triggerJumpscare()
+      }
       healthBar.style.width=health+"%"
-      flash.style.opacity=.4
-      setTimeout(()=>flash.style.opacity=0,80)
     }
   }
 
@@ -446,7 +494,6 @@ function animate(){
 
   // Boss logic
   if(state==="boss"){
-    // Keep player roughly inside arena bounds
     if(player.position.x<-39)player.position.x=-39
     if(player.position.x>39)player.position.x=39
     if(player.position.z<-270)player.position.z=-270
@@ -465,7 +512,7 @@ function animate(){
       }
     })
 
-    // Power generator (only once, when you have all batteries)
+    // Power generator once when you have all batteries
     if(batteries>=4 &&
        player.position.distanceTo(generator.position)<7 &&
        keys["KeyE"] &&
@@ -473,11 +520,10 @@ function animate(){
       generatorPowered=true
       generator.material.color.set(0x00ff00)
       hudText.textContent="Generator powered.\nThe red cat goes quiet…"
-      // Kill CatNap with a small delay
       catnapDeathTimer=0
     }
 
-    // Handle CatNap death after generator power
+    // CatNap death after generator power
     if(generatorPowered && !catnapDead){
       catnapDeathTimer+=delta
       if(catnapDeathTimer>1.2){
@@ -488,7 +534,7 @@ function animate(){
       }
     }
 
-    // After CatNap is dead, open Prototype door (slowly)
+    // Open Prototype door
     if(catnapDead && !protoDoorOpen){
       protoDoor.position.y+=15*delta
       if(protoDoor.position.y>20){
@@ -496,7 +542,7 @@ function animate(){
       }
     }
 
-    // If player goes through the opened door, start proto scene
+    // Enter Prototype room
     if(protoDoorOpen && player.position.z<-275){
       state="proto"
       fadeIn(protoMusic,.7,1500)
@@ -507,7 +553,6 @@ function animate(){
   // Prototype / ending
   if(state==="proto"){
     protoTimer+=delta
-    // Gentle “credits delay”
     if(protoTimer>9){
       endingUI.style.display="flex"
       state="ending"
@@ -518,7 +563,6 @@ function animate(){
 
   // Death reset
   if(health<=0 && state!=="ending"){
-    // Hard reset the page – simple but effective for now
     location.reload()
   }
 
