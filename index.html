@@ -70,7 +70,7 @@ WASD Move | Shift Sprint | Space Jump | F Flashlight | E Interact
 
 <script>
 
-/* ================= AUDIO SYSTEM ================= */
+/* ================= AUDIO ================= */
 
 const audio = {
 title: new Audio("Title music.mp3"),
@@ -79,15 +79,15 @@ boss: new Audio("chase music.mp3"),
 watcher: new Audio("Prototype encounter music.mp3")
 };
 
-for(let key in audio){
-audio[key].loop = true;
-audio[key].volume = 0.5;
+for(let k in audio){
+audio[k].loop = true;
+audio[k].volume = 0.5;
 }
 
-function stopAllAudio(){
-for(let key in audio){
-audio[key].pause();
-audio[key].currentTime = 0;
+function stopAll(){
+for(let k in audio){
+audio[k].pause();
+audio[k].currentTime = 0;
 }
 }
 
@@ -112,7 +112,9 @@ clearInterval(f);
 },100);
 }
 
-/* ================= TITLE SCREEN ================= */
+/* ================= TITLE ================= */
+
+audio.title.play();
 
 document.getElementById("titleScreen").addEventListener("click",()=>{
 document.getElementById("titleScreen").style.display="none";
@@ -121,98 +123,85 @@ fadeOut(audio.title);
 startGame();
 });
 
-audio.title.play();
-
-/* ================= THREE SETUP ================= */
+/* ================= THREE ================= */
 
 let scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x000000,20,200);
+scene.background = new THREE.Color(0x000000);
 
-let camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
 let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-let controls = new THREE.PointerLockControls(camera,document.body);
-document.body.addEventListener("click",()=>controls.lock());
+let controls = new THREE.PointerLockControls(camera, document.body);
+document.body.addEventListener("click", ()=>controls.lock());
 scene.add(controls.getObject());
 
-let ambient = new THREE.AmbientLight(0x303030);
+/* Lighting FIXED */
+
+let ambient = new THREE.AmbientLight(0x555555);
 scene.add(ambient);
 
-let flashlight = new THREE.SpotLight(0xffffff,4,120,Math.PI/10);
-camera.add(flashlight);
-camera.add(flashlight.target);
-scene.add(camera);
+let light = new THREE.PointLight(0xffffff, 1, 200);
+light.position.set(0,20,0);
+scene.add(light);
 
-/* ================= WORLD ================= */
+/* ================= ROOM ================= */
 
+function createWall(x,y,z,w,h,d){
+let wall = new THREE.Mesh(
+new THREE.BoxGeometry(w,h,d),
+new THREE.MeshStandardMaterial({color:0x222222})
+);
+wall.position.set(x,y,z);
+scene.add(wall);
+}
+
+let roomSize = 100;
+
+/* Floor */
 let floor = new THREE.Mesh(
-new THREE.PlaneGeometry(1000,1000),
+new THREE.BoxGeometry(roomSize,2,roomSize),
 new THREE.MeshStandardMaterial({color:0x111111})
 );
-floor.rotation.x = -Math.PI/2;
+floor.position.y = -1;
 scene.add(floor);
 
-/* ================= MOVEMENT ================= */
+/* Walls */
+createWall(0,25,-roomSize/2,roomSize,50,2);
+createWall(0,25,roomSize/2,roomSize,50,2);
+createWall(-roomSize/2,25,0,2,50,roomSize);
+createWall(roomSize/2,25,0,2,50,roomSize);
 
-let velocity = new THREE.Vector3();
-let direction = new THREE.Vector3();
-let move = {forward:false,back:false,left:false,right:false,sprint:false};
-let canJump = true;
+/* ================= PLAYER ================= */
 
-document.addEventListener("keydown",e=>{
-if(e.code==="KeyW") move.forward=true;
-if(e.code==="KeyS") move.back=true;
-if(e.code==="KeyA") move.left=true;
-if(e.code==="KeyD") move.right=true;
-if(e.code==="ShiftLeft") move.sprint=true;
-if(e.code==="Space" && canJump){ velocity.y+=8; canJump=false; }
-if(e.code==="KeyF") flashlight.visible=!flashlight.visible;
-if(e.code==="KeyE") interact();
-});
-
-document.addEventListener("keyup",e=>{
-if(e.code==="KeyW") move.forward=false;
-if(e.code==="KeyS") move.back=false;
-if(e.code==="KeyA") move.left=false;
-if(e.code==="KeyD") move.right=false;
-if(e.code==="ShiftLeft") move.sprint=false;
-});
-
-/* ================= DOOR ================= */
-
-let door = new THREE.Mesh(
-new THREE.BoxGeometry(6,6,1),
-new THREE.MeshStandardMaterial({color:0x550000})
-);
-door.position.set(0,3,-50);
-scene.add(door);
-
-let doorOpened=false;
-
-/* ================= BOSS ================= */
-
-let boss;
-let bossHealth=5;
-let bossActive=false;
-
-/* ================= WATCHER ================= */
-
-let watcher;
+camera.position.set(0,5,20);
 
 /* ================= GAME FLOW ================= */
+
+let door = new THREE.Mesh(
+new THREE.BoxGeometry(10,20,2),
+new THREE.MeshStandardMaterial({color:0x550000})
+);
+door.position.set(0,10,-40);
+scene.add(door);
+
+let doorOpened = false;
+let boss;
+let bossActive = false;
+let bossHealth = 5;
+let watcher;
 
 function startGame(){
 fadeIn(audio.explore);
 }
 
 function interact(){
-if(!doorOpened && camera.position.distanceTo(door.position)<10){
+if(!doorOpened && camera.position.distanceTo(door.position)<15){
 openDoor();
 }
 
-if(bossActive && camera.position.distanceTo(boss.position)<12){
+if(bossActive && camera.position.distanceTo(boss.position)<20){
 bossHealth--;
 boss.material.color.set(0xff0000);
 setTimeout(()=>boss.material.color.set(0x111111),200);
@@ -220,13 +209,17 @@ if(bossHealth<=0) defeatBoss();
 }
 }
 
+document.addEventListener("keydown",e=>{
+if(e.code==="KeyE") interact();
+});
+
 function openDoor(){
 doorOpened=true;
 fadeOut(audio.explore);
 
 let open=setInterval(()=>{
-door.position.y+=0.2;
-if(door.position.y>10){
+door.position.y+=0.5;
+if(door.position.y>40){
 clearInterval(open);
 startBoss();
 }
@@ -235,10 +228,10 @@ startBoss();
 
 function startBoss(){
 boss = new THREE.Mesh(
-new THREE.BoxGeometry(10,12,10),
+new THREE.BoxGeometry(15,25,15),
 new THREE.MeshStandardMaterial({color:0x111111})
 );
-boss.position.set(0,6,-120);
+boss.position.set(0,12,-70);
 scene.add(boss);
 bossActive=true;
 fadeIn(audio.boss);
@@ -248,9 +241,9 @@ function updateBoss(){
 if(!bossActive) return;
 
 let dir = new THREE.Vector3().subVectors(camera.position,boss.position).normalize();
-boss.position.add(dir.multiplyScalar(0.1));
+boss.position.add(dir.multiplyScalar(0.2));
 
-if(boss.position.distanceTo(camera.position)<6){
+if(boss.position.distanceTo(camera.position)<10){
 gameOver("CRUSHED");
 }
 }
@@ -265,35 +258,35 @@ startWatcher();
 function startWatcher(){
 fadeIn(audio.watcher);
 
-ambient.intensity=0.05;
+ambient.intensity = 0.1;
 
 watcher = new THREE.Mesh(
-new THREE.BoxGeometry(80,120,30),
+new THREE.BoxGeometry(60,100,20),
 new THREE.MeshStandardMaterial({color:0x000000})
 );
-watcher.position.set(0,60,-250);
+watcher.position.set(0,50,-150);
 scene.add(watcher);
 
 document.getElementById("centerMsg").style.display="block";
 document.getElementById("centerMsg").innerText="IT WAS NEVER ALONE...";
 
-setTimeout(()=>{
-fadeToBlack();
-},5000);
+setTimeout(()=>fadeToBlack(),5000);
 }
 
 function fadeToBlack(){
-let fade=0;
-let overlay=new THREE.Mesh(
-new THREE.PlaneGeometry(5000,5000),
-new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0})
-);
-overlay.position.z=-5;
-camera.add(overlay);
+let fade = 0;
+let overlay = document.createElement("div");
+overlay.style.position="absolute";
+overlay.style.width="100%";
+overlay.style.height="100%";
+overlay.style.background="black";
+overlay.style.opacity=0;
+overlay.style.top=0;
+document.body.appendChild(overlay);
 
 let f=setInterval(()=>{
 fade+=0.02;
-overlay.material.opacity=fade;
+overlay.style.opacity=fade;
 if(fade>=1){
 clearInterval(f);
 startCredits();
@@ -303,19 +296,19 @@ startCredits();
 
 function startCredits(){
 document.getElementById("centerMsg").style.display="none";
+stopAll();
 
 let credits=document.getElementById("credits");
 credits.style.display="block";
 credits.innerHTML=`
 <br><br>
 PROJECT PLAYCARE<br><br>
-Created By: Your Name<br><br>
+Created By: Weskc0<br><br>
 Programming & Design<br>
-Audio Integration<br>
-Game Systems<br><br>
+Audio Integration<br><br>
 Powered by Three.js<br><br>
 Thank You For Playing<br><br>
-(Click To Restart)
+(Refresh Page To Restart)
 `;
 
 let pos=-100;
@@ -326,12 +319,10 @@ if(pos>=100){
 clearInterval(scroll);
 }
 },30);
-
-document.addEventListener("click",()=>location.reload());
 }
 
 function gameOver(text){
-stopAllAudio();
+stopAll();
 document.getElementById("centerMsg").style.display="block";
 document.getElementById("centerMsg").innerText=text;
 controls.unlock();
@@ -339,26 +330,9 @@ controls.unlock();
 
 /* ================= LOOP ================= */
 
-camera.position.y=2;
-
 function animate(){
 requestAnimationFrame(animate);
-
-velocity.y-=0.4;
-direction.z=Number(move.forward)-Number(move.back);
-direction.x=Number(move.right)-Number(move.left);
-direction.normalize();
-
-let speed=move.sprint?0.4:0.2;
-
-if(move.forward||move.back) controls.moveForward(direction.z*speed);
-if(move.left||move.right) controls.moveRight(direction.x*speed);
-
-camera.position.y+=velocity.y*0.1;
-if(camera.position.y<2){velocity.y=0;camera.position.y=2;canJump=true;}
-
 updateBoss();
-
 renderer.render(scene,camera);
 }
 animate();
