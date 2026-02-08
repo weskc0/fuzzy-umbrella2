@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare</title>
+<title>Project Playcare - Tutorial</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:Arial; }
@@ -13,7 +13,7 @@ top:0;
 left:0;
 width:100%;
 height:100%;
-background:rgba(0,0,0,0.95);
+background:black;
 color:white;
 display:flex;
 flex-direction:column;
@@ -30,9 +30,18 @@ position:absolute;
 bottom:20px;
 left:20px;
 color:white;
-font-size:16px;
+font-size:18px;
 z-index:50;
-opacity:0.8;
+}
+
+#prompt {
+position:absolute;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+color:white;
+font-size:20px;
+z-index:50;
 }
 </style>
 </head>
@@ -40,14 +49,16 @@ opacity:0.8;
 
 <div id="overlay">
 PROJECT PLAYCARE<br>
-<div style="font-size:18px; opacity:0.6; margin-top:15px;">
+<div style="font-size:18px; opacity:0.7; margin-top:15px;">
 Click To Wake Up
 </div>
 </div>
 
 <div id="ui">
-WASD Move | Shift Sprint | Space Jump | F Flashlight
+WASD Move | Shift Sprint | Space Jump | F Flashlight | E Interact
 </div>
+
+<div id="prompt"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
@@ -56,86 +67,93 @@ WASD Move | Shift Sprint | Space Jump | F Flashlight
 /* ================= SCENE ================= */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050509);
-scene.fog = new THREE.Fog(0x050509, 20, 250);
+scene.background = new THREE.Color(0x202030);
 
 const camera = new THREE.PerspectiveCamera(
 75,
-window.innerWidth / window.innerHeight,
+window.innerWidth/window.innerHeight,
 0.1,
 2000
 );
 
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= SKYDOME ================= */
+/* ================= LIGHTING (BRIGHT FOR TUTORIAL) ================= */
 
-const skyGeo = new THREE.SphereGeometry(1000, 32, 32);
-const skyMat = new THREE.MeshBasicMaterial({
-color:0x0a0a15,
-side:THREE.BackSide
-});
-const sky = new THREE.Mesh(skyGeo, skyMat);
-scene.add(sky);
-
-/* ================= LIGHTING ================= */
-
-const ambient = new THREE.AmbientLight(0xffffff, 0.05);
+const ambient = new THREE.AmbientLight(0xffffff,0.6);
 scene.add(ambient);
 
-/* FLASHLIGHT */
+const overhead = new THREE.DirectionalLight(0xffffff,0.6);
+overhead.position.set(10,20,10);
+scene.add(overhead);
 
-const flashlight = new THREE.SpotLight(0xffffff, 0);
-flashlight.angle = Math.PI/8;
-flashlight.penumbra = 0.5;
-flashlight.decay = 1.5;
+/* FLASHLIGHT (FIXED POSITION) */
+
+const flashlight = new THREE.SpotLight(0xffffff,0);
+flashlight.angle = Math.PI/7;
+flashlight.penumbra = 0.4;
 flashlight.distance = 200;
 
 camera.add(flashlight);
 camera.add(flashlight.target);
-flashlight.target.position.set(0,0,-1);
+
+flashlight.position.set(0,0.5,-0.5);
+flashlight.target.position.set(0,0,-5);
 
 let flashlightOn = false;
 
 /* ================= FLOOR ================= */
 
 const floor = new THREE.Mesh(
-new THREE.PlaneGeometry(600,600),
-new THREE.MeshStandardMaterial({ color:0x111111 })
+new THREE.PlaneGeometry(500,500),
+new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
 /* ================= BUILDING ================= */
 
-function createWall(x,y,z,w,h,d,color=0x222222){
-const wall = new THREE.Mesh(
+function wall(x,y,z,w,h,d,color=0x888888){
+const mesh = new THREE.Mesh(
 new THREE.BoxGeometry(w,h,d),
-new THREE.MeshStandardMaterial({ color })
+new THREE.MeshStandardMaterial({color})
 );
-wall.position.set(x,y,z);
-scene.add(wall);
+mesh.position.set(x,y,z);
+scene.add(mesh);
+return mesh;
 }
 
-/* Starting Room (Train Crash Area) */
-
-createWall(0,5,-50,40,10,1);
-createWall(-20,5,-30,1,10,40);
-createWall(20,5,-30,1,10,40);
-createWall(0,10,-30,40,1,40);
+/* Tutorial Room */
+wall(0,5,-20,30,10,1);
+wall(-15,5,-5,1,10,30);
+wall(15,5,-5,1,10,30);
+wall(0,10,-5,30,1,30);
 
 /* Corridor */
+wall(0,5,-60,20,10,1);
+wall(-10,5,-40,1,10,40);
+wall(10,5,-40,1,10,40);
 
-createWall(0,5,-90,20,10,1);
-createWall(-10,5,-70,1,10,40);
-createWall(10,5,-70,1,10,40);
+/* Locked Door */
+let door = wall(0,4,-60,6,8,1,0x3333aa);
+let doorOpen = false;
+
+/* ================= BATTERY ================= */
+
+let battery = new THREE.Mesh(
+new THREE.BoxGeometry(1,1,1),
+new THREE.MeshStandardMaterial({color:0xffff00})
+);
+battery.position.set(5,1,-30);
+scene.add(battery);
+let batteryCollected = false;
 
 /* ================= PLAYER ================= */
 
 const player = new THREE.Object3D();
-player.position.set(0,2,-40);
+player.position.set(0,2,-10);
 scene.add(player);
 player.add(camera);
 
@@ -152,104 +170,129 @@ let keys = {};
 
 /* ================= INPUT ================= */
 
-document.addEventListener("keydown", e => {
-keys[e.code] = true;
+document.addEventListener("keydown",e=>{
+keys[e.code]=true;
 
-if(e.code === "KeyF"){
-flashlightOn = !flashlightOn;
-flashlight.intensity = flashlightOn ? 3 : 0;
+if(e.code==="KeyF"){
+flashlightOn=!flashlightOn;
+flashlight.intensity = flashlightOn ? 2 : 0;
+}
+
+if(e.code==="KeyE"){
+interact();
 }
 });
 
-document.addEventListener("keyup", e => keys[e.code] = false);
+document.addEventListener("keyup",e=>keys[e.code]=false);
+
+/* ================= INTERACTION ================= */
+
+function interact(){
+
+/* Battery Pickup */
+if(!batteryCollected &&
+player.position.distanceTo(battery.position)<3){
+batteryCollected=true;
+scene.remove(battery);
+document.getElementById("prompt").innerText="Battery Collected!";
+setTimeout(()=>document.getElementById("prompt").innerText="",2000);
+}
+
+/* Door */
+if(!doorOpen &&
+player.position.distanceTo(door.position)<5){
+
+if(batteryCollected){
+door.position.y+=20;
+doorOpen=true;
+document.getElementById("prompt").innerText="Door Powered!";
+setTimeout(()=>document.getElementById("prompt").innerText="",2000);
+}
+else{
+document.getElementById("prompt").innerText="Door Needs Power.";
+setTimeout(()=>document.getElementById("prompt").innerText="",2000);
+}
+
+}
+
+}
 
 /* ================= POINTER LOCK ================= */
 
-const overlay = document.getElementById("overlay");
+const overlay=document.getElementById("overlay");
 
-overlay.addEventListener("click", () => {
+overlay.addEventListener("click",()=>{
 renderer.domElement.requestPointerLock();
 });
 
-document.addEventListener("pointerlockchange", () => {
-if(document.pointerLockElement === renderer.domElement){
-overlay.style.display = "none";
+document.addEventListener("pointerlockchange",()=>{
+if(document.pointerLockElement===renderer.domElement){
+overlay.style.display="none";
 }
 });
 
 /* ================= MOUSE LOOK ================= */
 
-let yaw = 0;
-let pitch = 0;
+let yaw=0;
+let pitch=0;
 
-document.addEventListener("mousemove", (event) => {
-if(document.pointerLockElement === renderer.domElement){
-
-yaw -= event.movementX * 0.002;
-pitch -= event.movementY * 0.002;
-
-pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-
-player.rotation.y = yaw;
-camera.rotation.x = pitch;
+document.addEventListener("mousemove",(event)=>{
+if(document.pointerLockElement===renderer.domElement){
+yaw-=event.movementX*0.002;
+pitch-=event.movementY*0.002;
+pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
+player.rotation.y=yaw;
+camera.rotation.x=pitch;
 }
 });
 
 /* ================= MOVEMENT ================= */
 
-let prevTime = performance.now();
+let prevTime=performance.now();
 
 function animate(){
 requestAnimationFrame(animate);
 
-const time = performance.now();
-const delta = (time - prevTime)/1000;
-prevTime = time;
-
-/* Direction */
+let time=performance.now();
+let delta=(time-prevTime)/1000;
+prevTime=time;
 
 direction.set(0,0,0);
-if(keys["KeyW"]) direction.z -= 1;
-if(keys["KeyS"]) direction.z += 1;
-if(keys["KeyA"]) direction.x -= 1;
-if(keys["KeyD"]) direction.x += 1;
+if(keys["KeyW"]) direction.z-=1;
+if(keys["KeyS"]) direction.z+=1;
+if(keys["KeyA"]) direction.x-=1;
+if(keys["KeyD"]) direction.x+=1;
 direction.normalize();
 
-/* Speed */
+let speed=(keys["ShiftLeft"]||keys["ShiftRight"])?sprintSpeed:moveSpeed;
 
-let speed = (keys["ShiftLeft"]||keys["ShiftRight"]) ? sprintSpeed : moveSpeed;
+velocity.x=direction.x*speed;
+velocity.z=direction.z*speed;
+velocity.y-=gravity*delta;
 
-/* Velocity */
-
-velocity.x = direction.x * speed;
-velocity.z = direction.z * speed;
-velocity.y -= gravity * delta;
-
-/* Jump */
-
-if(keys["Space"] && canJump){
-velocity.y = jumpForce;
-canJump = false;
+if(keys["Space"]&&canJump){
+velocity.y=jumpForce;
+canJump=false;
 }
 
-/* Move */
+player.translateX(velocity.x*delta);
+player.translateZ(velocity.z*delta);
+player.position.y+=velocity.y*delta;
 
-player.translateX(velocity.x * delta);
-player.translateZ(velocity.z * delta);
-player.position.y += velocity.y * delta;
-
-/* Floor collision */
-
-if(player.position.y < 2){
-velocity.y = 0;
-player.position.y = 2;
-canJump = true;
+if(player.position.y<2){
+velocity.y=0;
+player.position.y=2;
+canJump=true;
 }
 
-/* Flashlight Flicker */
-
+/* Flashlight subtle stability */
 if(flashlightOn){
-flashlight.intensity = 2.7 + Math.random()*0.5;
+flashlight.intensity=2;
+}
+
+/* Battery Spin */
+if(!batteryCollected){
+battery.rotation.y+=2*delta;
 }
 
 renderer.render(scene,camera);
@@ -260,12 +303,11 @@ animate();
 /* ================= RESIZE ================= */
 
 window.addEventListener("resize",()=>{
-camera.aspect = window.innerWidth/window.innerHeight;
+camera.aspect=window.innerWidth/window.innerHeight;
 camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
 </script>
-
 </body>
 </html>
