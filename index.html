@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PROJECT: PLAYCARE</title>
+<title>PROJECT: PLAYCARE – Chapter 1</title>
 <style>
 body{
   margin:0;
@@ -20,47 +20,55 @@ body{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  background:radial-gradient(circle at 50% 20%, #181824 0, #050611 55%, #000 100%);
-  z-index:20;
+  background:linear-gradient(160deg, #050814 0%, #02030a 40%, #050814 100%);
+  z-index:30;
 }
-#titleLogo{
-  font-size:54px;
-  letter-spacing:6px;
-  margin:0;
-  text-transform:uppercase;
+#titleBackdrop{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,0,0,0.08) 0, transparent 45%),
+    radial-gradient(circle at 80% 70%, rgba(0,120,255,0.12) 0, transparent 50%);
+  pointer-events:none;
+  opacity:0.9;
+}
+#titleContent{
+  position:relative;
   text-align:center;
 }
-#titleLogo span{
-  display:block;
+#titleLogo{
+  margin:0;
+  text-transform:uppercase;
+  letter-spacing:8px;
 }
 #titleLogo span:nth-child(1){
+  display:block;
   font-size:18px;
-  letter-spacing:8px;
   color:#ff4a4a;
 }
 #titleLogo span:nth-child(2){
+  display:block;
+  font-size:40px;
+}
+#titleTagline{
   margin-top:6px;
+  font-size:13px;
+  opacity:.78;
+  animation:tagPulse 2.8s ease-in-out infinite;
 }
-#titleSubtitle{
-  margin-top:4px;
-  font-size:14px;
-  opacity:.75;
-  text-align:center;
-  animation:subtitlePulse 2.4s ease-in-out infinite;
-}
-@keyframes subtitlePulse{
-  0%,100%{opacity:.4;}
+@keyframes tagPulse{
+  0%,100%{opacity:.45;}
   50%{opacity:1;}
 }
 #titleButtons{
-  margin-top:30px;
+  margin-top:26px;
   display:flex;
   flex-direction:column;
   gap:10px;
 }
 .titleBtn{
-  padding:10px 30px;
-  font-size:16px;
+  padding:10px 32px;
+  font-size:15px;
   letter-spacing:2px;
   text-transform:uppercase;
   border:none;
@@ -68,12 +76,13 @@ body{
   cursor:pointer;
   background:#ff2222;
   color:white;
-  transition:background .15s, transform .1s, box-shadow .15s;
+  box-shadow:0 0 14px rgba(0,0,0,0.5);
+  transition:background .15s,transform .1s,box-shadow .15s;
 }
 .titleBtn:hover{
   background:#ff4444;
   transform:translateY(-1px);
-  box-shadow:0 0 12px rgba(255,60,60,0.5);
+  box-shadow:0 0 22px rgba(255,60,60,0.6);
 }
 
 /* SETTINGS PANEL */
@@ -84,11 +93,11 @@ body{
   transform:translate(-50%,-50%);
   width:320px;
   padding:16px 18px;
-  background:rgba(0,0,0,0.88);
+  background:rgba(3,4,10,0.95);
   border:1px solid #444;
-  box-shadow:0 0 18px rgba(0,0,0,0.8);
+  box-shadow:0 0 22px rgba(0,0,0,0.9);
   display:none;
-  z-index:25;
+  z-index:35;
 }
 #settingsPanel h2{
   margin:0 0 10px 0;
@@ -103,7 +112,7 @@ body{
   font-size:13px;
 }
 .settingRow input[type=range]{
-  width:160px;
+  width:170px;
 }
 .settingRow input[type=checkbox]{
   transform:scale(1.1);
@@ -122,7 +131,7 @@ body{
   background:#666;
 }
 
-/* BASIC HUD STUBS (for when game runs) */
+/* GAME HUD STUBS */
 #hud,#info{
   position:absolute;
   left:20px;
@@ -130,7 +139,7 @@ body{
   color:white;
   font-size:14px;
   text-shadow:0 0 4px #000;
-  z-index:5;
+  z-index:10;
   white-space:pre-line;
   display:none;
 }
@@ -149,14 +158,48 @@ body{
   background:white;
   transform:translate(-50%,-50%);
   display:none;
-  z-index:5;
+  z-index:10;
 }
 
-/* Placeholder for canvas */
+/* GAME OVER / CREDITS PLACEHOLDERS */
+#gameOver,#credits{
+  position:absolute;
+  inset:0;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:black;
+  color:white;
+  z-index:40;
+}
+#gameOver h1,#credits h1{
+  margin-bottom:10px;
+  letter-spacing:4px;
+}
+
+/* Jumpscare overlay placeholder */
+#jumpscare{
+  position:absolute;
+  inset:0;
+  background:black;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+}
+#jumpscare img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
+
+/* Canvas */
 #gameCanvas{
   position:fixed;
   inset:0;
   display:block;
+  z-index:0;
 }
 </style>
 </head>
@@ -164,19 +207,22 @@ body{
 
 <!-- TITLE SCREEN -->
 <div id="titleScreen">
-  <h1 id="titleLogo">
-    <span>PROJECT</span>
-    <span>PLAYCARE</span>
-  </h1>
-  <div id="titleSubtitle">Click to begin. The factory has been waiting for you.</div>
-  <div id="titleButtons">
-    <button class="titleBtn" id="playBtn">Play</button>
-    <button class="titleBtn" id="settingsBtn">Settings</button>
-    <button class="titleBtn" id="quitBtn">Quit</button>
+  <div id="titleBackdrop"></div>
+  <div id="titleContent">
+    <h1 id="titleLogo">
+      <span>PROJECT:</span>
+      <span>PLAYCARE</span>
+    </h1>
+    <div id="titleTagline">“Everyone disappeared. They’re still here.”</div>
+    <div id="titleButtons">
+      <button class="titleBtn" id="playBtn">Play</button>
+      <button class="titleBtn" id="settingsBtn">Settings</button>
+      <button class="titleBtn" id="quitBtn">Quit</button>
+    </div>
   </div>
 </div>
 
-<!-- SETTINGS PANEL -->
+<!-- SETTINGS -->
 <div id="settingsPanel">
   <h2>SETTINGS</h2>
   <div class="settingRow">
@@ -194,27 +240,42 @@ body{
   <button id="settingsClose">Back</button>
 </div>
 
-<!-- BASIC GAME HUD ELEMENTS (you wire them to your chapter logic) -->
+<!-- HUD / INFO -->
 <div id="hud"></div>
 <div id="info"></div>
 <div id="crosshair"></div>
 
-<!-- AUDIO (TITLE + IN-GAME) -->
+<!-- Game over / credits scaffolds (we’ll fill later when chase/exits exist) -->
+<div id="gameOver">
+  <h1>YOU DIED</h1>
+  <p>Huggy found you.\n\nThis will later restart from the lobby.</p>
+</div>
+
+<div id="credits">
+  <h1>CHAPTER 1 COMPLETE</h1>
+  <p>You opened Poppy’s case.\nThanks for playing this web fan demo.</p>
+</div>
+
+<div id="jumpscare">
+  <!-- <img src="huggy_jumpscare.png" alt="Huggy"> -->
+</div>
+
+<!-- AUDIO -->
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
 <audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
 <audio id="chaseMusic" src="chase music.mp3" loop></audio>
 <audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
+<audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
-<!-- THREE.JS + GAME SCRIPT -->
 <canvas id="gameCanvas"></canvas>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
-// ===== TITLE SCREEN + SETTINGS LOGIC =====
+// ===== TITLE + SETTINGS =====
 const titleScreen=document.getElementById("titleScreen");
 const playBtn=document.getElementById("playBtn");
 const settingsBtn=document.getElementById("settingsBtn");
 const quitBtn=document.getElementById("quitBtn");
-
 const settingsPanel=document.getElementById("settingsPanel");
 const settingsClose=document.getElementById("settingsClose");
 const volumeSlider=document.getElementById("volumeSlider");
@@ -229,11 +290,15 @@ const protoMusic=document.getElementById("protoMusic");
 const hud=document.getElementById("hud");
 const info=document.getElementById("info");
 const crosshair=document.getElementById("crosshair");
+const jumpscare=document.getElementById("jumpscare");
+const jumpscareSound=document.getElementById("jumpscareSound");
 
-// global options used by the game
+const gameOverUI=document.getElementById("gameOver");
+const creditsUI=document.getElementById("credits");
+
 const options={
   masterVolume:0.75,
-  mouseSensitivity:0.8/100, // scaled from slider
+  mouseSensitivity:0.08, // rad per pixel
   flashlightEnabled:true
 };
 
@@ -256,25 +321,22 @@ function fadeOut(audio,duration=1500){
 function stopAllMusic(){
   [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
-
-// Apply master volume
 function applyMasterVolume(){
-  const tracks=[titleMusic,hallMusic,chaseMusic,protoMusic];
-  tracks.forEach(a=>{
-    a.volume=options.masterVolume;
-  });
+  const list=[titleMusic,hallMusic,chaseMusic,protoMusic];
+  list.forEach(a=>{a.volume=options.masterVolume;});
 }
+
+// init title music
+applyMasterVolume();
+fadeIn(titleMusic,options.masterVolume);
+
 volumeSlider.addEventListener("input",()=>{
   options.masterVolume=Number(volumeSlider.value)/100;
   applyMasterVolume();
 });
-
-// Mouse sensitivity (used by game camera)
 sensSlider.addEventListener("input",()=>{
-  options.mouseSensitivity=Number(sensSlider.value)/1000; // e.g. 0.02–0.2
+  options.mouseSensitivity=Number(sensSlider.value)/1000;
 });
-
-// Flashlight toggle
 flashToggle.addEventListener("change",()=>{
   options.flashlightEnabled=flashToggle.checked;
   if(window.gameFlashlight){
@@ -282,7 +344,6 @@ flashToggle.addEventListener("change",()=>{
   }
 });
 
-// Settings open/close
 settingsBtn.onclick=()=>{
   settingsPanel.style.display="block";
 };
@@ -290,33 +351,25 @@ settingsClose.onclick=()=>{
   settingsPanel.style.display="none";
 };
 quitBtn.onclick=()=>{
-  // For web, "Quit" just hides title – nothing else to do.
+  // For web, just hide title and stop audio
   titleScreen.style.display="none";
+  fadeOut(titleMusic,800);
 };
 
-// Start title music
-applyMasterVolume();
-fadeIn(titleMusic,options.masterVolume);
-
-// When PLAY is clicked, fade out title music and start the game
 playBtn.onclick=()=>{
-  fadeOut(titleMusic,800);
   titleScreen.style.display="none";
   settingsPanel.style.display="none";
+  fadeOut(titleMusic,800);
   startGame();
 };
 
-// ===== THREE.JS GAME BOOTSTRAP (STUB) =====
-// This is where you plug in your existing Project: Playcare chapter code.
-// The variable `options` gives you masterVolume, mouseSensitivity, flashlightEnabled.
-// The global `gameFlashlight` is referenced for toggling.
-
+// ===== THREE.JS GAME SCAFFOLD (NORMAL LIGHTING, ABANDONED VIBE) =====
 let scene,camera,renderer,player,gameFlashlight;
 let yaw=0,pitch=0;
 const keys={};
+const collisionBoxes=[];
 
 function startGame(){
-  // Basic scene init; replace/extend with your chapter logic
   const canvas=document.getElementById("gameCanvas");
   renderer=new THREE.WebGLRenderer({canvas,antialias:true});
   renderer.setSize(window.innerWidth,window.innerHeight);
@@ -324,56 +377,44 @@ function startGame(){
   renderer.shadowMap.enabled=true;
 
   scene=new THREE.Scene();
-  scene.fog=new THREE.Fog(0x111118,15,120);
+  scene.background=new THREE.Color(0x060814);
+  // Slight bluish fog but not too strong
+  scene.fog=new THREE.Fog(0x070a16,40,180); // normal-ish lighting [web:43][web:45]
 
   camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
+
   player=new THREE.Object3D();
-  player.position.set(0,2,10);
+  player.position.set(0,2,18);
   scene.add(player);
   player.add(camera);
 
-  // Lights
-  const ambient=new THREE.AmbientLight(0x404050,0.5);
+  // Lighting: normal, factory ambient
+  const ambient=new THREE.AmbientLight(0x8888aa,0.7);
   scene.add(ambient);
 
-  gameFlashlight=new THREE.SpotLight(0xffffff,2.2,60,Math.PI/8,0.4);
+  const lobbyLight=new THREE.PointLight(0xffffff,1.3,50);
+  lobbyLight.position.set(0,7,5);
+  lobbyLight.castShadow=true;
+  scene.add(lobbyLight);
+
+  // Flashlight attached to camera
+  gameFlashlight=new THREE.SpotLight(0xffffff,2.0,45,Math.PI/8,0.5);
   gameFlashlight.castShadow=true;
   camera.add(gameFlashlight);
   scene.add(camera);
   gameFlashlight.visible=options.flashlightEnabled;
 
-  // Simple room
-  const floorMat=new THREE.MeshStandardMaterial({color:0x181a24,roughness:0.9});
-  const wallMat=new THREE.MeshStandardMaterial({color:0x202434,roughness:0.8});
-  const floor=new THREE.Mesh(new THREE.BoxGeometry(20,0.2,20),floorMat);
-  floor.position.set(0,0,0);
-  floor.receiveShadow=true;
-  scene.add(floor);
+  // Simple blockout of lobby: floor + walls + Huggy statue placeholder
+  buildLobbyBlockout();
 
-  const wallF=new THREE.Mesh(new THREE.BoxGeometry(20,6,0.2),wallMat);
-  wallF.position.set(0,3,-10);
-  scene.add(wallF);
-
-  const wallB=wallF.clone();
-  wallB.position.z=10;
-  scene.add(wallB);
-
-  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.2,6,20),wallMat);
-  wallL.position.set(-10,3,0);
-  scene.add(wallL);
-
-  const wallR=wallL.clone();
-  wallR.position.x=10;
-  scene.add(wallR);
-
-  // HUD visible once game starts
+  // HUD on
   hud.style.display="block";
   info.style.display="block";
   crosshair.style.display="block";
-  hud.textContent="PROJECT: PLAYCARE\n(Prototype room)\nMove with WASD, look with mouse.";
-  info.textContent="Settings: ESC → browser.\nVolume/sensitivity via Settings on title.";
+  hud.textContent="LOBBY (BLOCKOUT)\nWalk around. This will evolve into full Chapter 1.";
+  info.textContent="WASD – move | Mouse – look | SPACE – jump | F – flashlight";
 
-  // Pointer lock + movement
+  // Pointer lock + controls
   renderer.domElement.requestPointerLock=
     renderer.domElement.requestPointerLock||
     renderer.domElement.mozRequestPointerLock;
@@ -387,8 +428,14 @@ function startGame(){
     player.rotation.y=yaw;
     camera.rotation.x=pitch;
   });
-
-  document.addEventListener("keydown",(e)=>{keys[e.code]=true;});
+  document.addEventListener("keydown",(e)=>{
+    keys[e.code]=true;
+    if(e.code==="KeyF"){
+      options.flashlightEnabled=!options.flashlightEnabled;
+      gameFlashlight.visible=options.flashlightEnabled;
+      flashToggle.checked=options.flashlightEnabled;
+    }
+  });
   document.addEventListener("keyup",(e)=>{keys[e.code]=false;});
 
   window.addEventListener("resize",()=>{
@@ -397,12 +444,100 @@ function startGame(){
     renderer.setSize(window.innerWidth,window.innerHeight);
   });
 
-  // Start in-game music (e.g. lobby/hall music)
+  // Start “normal” factory music
   stopAllMusic();
   applyMasterVolume();
   fadeIn(hallMusic,options.masterVolume);
 
   animate();
+}
+
+// Build a nicer lobby blockout for the title/game start
+function addCollisionFrom(mesh){
+  const box=new THREE.Box3().setFromObject(mesh);
+  collisionBoxes.push(box);
+}
+function buildLobbyBlockout(){
+  const floorMat=new THREE.MeshStandardMaterial({color:0x1b1f2d,roughness:0.8});
+  const wallMat=new THREE.MeshStandardMaterial({color:0x262c3e,roughness:0.7});
+  const trimMat=new THREE.MeshStandardMaterial({color:0x424a66,roughness:0.6});
+  const huggyMat=new THREE.MeshStandardMaterial({color:0x004477});
+
+  const lobby=new THREE.Group();
+
+  // floor
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(30,0.3,30),floorMat);
+  floor.position.set(0,0,0);
+  floor.receiveShadow=true;
+  lobby.add(floor);
+  addCollisionFrom(floor);
+
+  // walls
+  const wallF=new THREE.Mesh(new THREE.BoxGeometry(30,8,0.4),wallMat);
+  wallF.position.set(0,4,-15);
+  lobby.add(wallF);
+  addCollisionFrom(wallF);
+
+  const wallB=wallF.clone();
+  wallB.position.z=15;
+  lobby.add(wallB);
+  addCollisionFrom(wallB);
+
+  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.4,8,30),wallMat);
+  wallL.position.set(-15,4,0);
+  lobby.add(wallL);
+  addCollisionFrom(wallL);
+
+  const wallR=wallL.clone();
+  wallR.position.x=15;
+  lobby.add(wallR);
+  addCollisionFrom(wallR);
+
+  // upper trim band
+  const trim=new THREE.Mesh(new THREE.BoxGeometry(30.2,0.4,30.2),trimMat);
+  trim.position.set(0,8,0);
+  lobby.add(trim);
+
+  // center Huggy statue placeholder
+  const huggyBody=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,5,8),huggyMat);
+  huggyBody.position.set(0,2.8,-4);
+  huggyBody.castShadow=true;
+  lobby.add(huggyBody);
+  const huggyHead=new THREE.Mesh(new THREE.SphereGeometry(1.4,16,16),huggyMat);
+  huggyHead.position.set(0,5.6,-4);
+  huggyBody.add(huggyHead);
+
+  // front reception desk
+  const desk=new THREE.Mesh(new THREE.BoxGeometry(8,1.5,2),trimMat);
+  desk.position.set(0,1,6);
+  desk.castShadow=true;
+  lobby.add(desk);
+  addCollisionFrom(desk);
+
+  // side door placeholder (to power room etc.)
+  const leftDoor=new THREE.Mesh(new THREE.BoxGeometry(3,6,0.4),trimMat);
+  leftDoor.position.set(-10,3,-15);
+  lobby.add(leftDoor);
+  addCollisionFrom(leftDoor);
+
+  scene.add(lobby);
+}
+
+// Collision resolution vs walls (simple point-with-radius vs Box3)
+function canMoveTo(nextPos,radius=0.7){
+  for(const box of collisionBoxes){
+    const expanded=box.clone();
+    expanded.min.x-=radius;
+    expanded.max.x+=radius;
+    expanded.min.z-=radius;
+    expanded.max.z+=radius;
+    expanded.min.y=-Infinity;
+    expanded.max.y=Infinity;
+    if(expanded.containsPoint(nextPos)){
+      return false;
+    }
+  }
+  return true;
 }
 
 function animate(){
@@ -424,7 +559,16 @@ function animate(){
     if(keys["KeyD"])move.add(right);
     if(move.lengthSq()>0)move.normalize();
 
-    player.position.addScaledVector(move,6*dt);
+    const speed=6;
+    const step=move.clone().multiplyScalar(speed*dt);
+    const nextPos=player.position.clone().add(step);
+    if(canMoveTo(nextPos,0.7)){
+      player.position.copy(nextPos);
+    }
+
+    // gravity stub
+    // (for now just lock to y=2 so it feels normal height)
+    player.position.y=2;
   }
 
   renderer.render(scene,camera);
