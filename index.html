@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare</title>
+<title>Poppy Playtime – Chapter 1 (Web)</title>
 <style>
 body{
   margin:0;
@@ -10,10 +10,9 @@ body{
   background:black;
   font-family:Arial, system-ui, sans-serif;
 }
-#title,#ending{
+#title,#gameOver,#credits{
   position:absolute;
-  width:100%;
-  height:100%;
+  inset:0;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -25,10 +24,10 @@ body{
 #title h1{
   font-size:52px;
   margin:0 0 10px 0;
-  letter-spacing:4px;
+  letter-spacing:3px;
 }
 #title p{
-  max-width:460px;
+  max-width:520px;
   text-align:center;
   font-size:14px;
   opacity:.85;
@@ -36,9 +35,9 @@ body{
   white-space:pre-line;
 }
 button{
-  padding:12px 25px;
-  margin-top:18px;
-  font-size:18px;
+  padding:10px 24px;
+  margin-top:16px;
+  font-size:16px;
   cursor:pointer;
   background:#ff2222;
   border:none;
@@ -48,26 +47,40 @@ button{
 button:hover{
   background:#ff4444;
 }
-#ending h1{
+#gameOver h1{
   font-size:40px;
-  letter-spacing:5px;
+  letter-spacing:4px;
+  margin-bottom:10px;
 }
-#ending p{
+#gameOver p,#credits p{
   font-size:14px;
   opacity:.9;
+  max-width:420px;
+  text-align:center;
+  white-space:pre-line;
 }
-
-#healthBox{
+#credits h1{
+  font-size:32px;
+  letter-spacing:3px;
+}
+#hud,#info{
   position:absolute;
-  top:20px;
   left:20px;
-  width:220px;
-  height:22px;
-  border:2px solid white;
-  display:none;
+  bottom:20px;
+  color:white;
+  font-size:14px;
+  text-shadow:0 0 4px #000;
   z-index:5;
+  white-space:pre-line;
 }
-#healthBar{height:100%;width:100%;background:red}
+#info{
+  left:auto;
+  right:20px;
+  bottom:auto;
+  top:20px;
+  font-size:13px;
+  text-align:right;
+}
 #crosshair{
   position:absolute;
   top:50%;left:50%;
@@ -77,38 +90,6 @@ button:hover{
   display:none;
   z-index:5;
 }
-#flash{
-  position:absolute;
-  width:100%;height:100%;
-  background:red;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .1s;
-  z-index:10;
-}
-#hudText{
-  position:absolute;
-  bottom:20px;
-  left:20px;
-  color:white;
-  font-size:14px;
-  text-shadow:0 0 4px #000;
-  z-index:5;
-  white-space:pre-line;
-}
-#infoText{
-  position:absolute;
-  top:20px;
-  right:20px;
-  color:white;
-  font-size:13px;
-  text-align:right;
-  opacity:.8;
-  text-shadow:0 0 4px #000;
-  z-index:5;
-}
-
-/* Jumpscare overlay */
 #jumpscare{
   position:absolute;
   inset:0;
@@ -128,453 +109,448 @@ button:hover{
 <body>
 
 <div id="title">
-  <h1>PROJECT PLAYCARE</h1>
+  <h1>POPPY PLAYTIME – CHAPTER 1</h1>
   <p>
-A Poppy Playtime: Chapter 3–inspired fan scene.
+A Three.js fan remake of A Tight Squeeze.
 
-You wake up in a hallway deep in Playcare.
-CatNap will not let you leave.
+You’re an ex-employee returning to Playtime Co.
+The staff vanished years ago.
+
+Letter. Lobby. Huggy. Vents. The Flower.
 
 Controls:
 WASD – move
-SPACE – jump
-E – interact (generator)
 Mouse – look
+SPACE – jump
+E – interact
   </p>
-  <button id="start">START</button>
+  <button id="startBtn">START</button>
 </div>
 
-<div id="ending" style="display:none;">
-  <h1>SEE YOU SOON</h1>
-  <p>Thanks for playing this Project Playcare prototype.</p>
+<div id="gameOver" style="display:none;">
+  <h1>YOU DIED</h1>
+  <p>Huggy found you in the dark.\n\nPress RETRY to try again from the lobby.</p>
+  <button id="retryBtn">RETRY</button>
 </div>
 
-<div id="healthBox"><div id="healthBar"></div></div>
+<div id="credits" style="display:none;">
+  <h1>CHAPTER 1 COMPLETE</h1>
+  <p>You opened Poppy’s case.\nShe’s finally awake.\n\nThanks for playing this web fan game.</p>
+</div>
+
+<div id="hud"></div>
+<div id="info"></div>
 <div id="crosshair"></div>
-<div id="flash"></div>
-<div id="hudText"></div>
-<div id="infoText"></div>
 
-<!-- Jumpscare overlay (use your own image if you like) -->
 <div id="jumpscare">
-  <!-- Optional placeholder image. Replace src or remove <img> if you only want flash + sound. -->
-  <!-- <img src="catnap_jumpscare.png" alt="CatNap"> -->
+  <!-- optional: <img src="huggy_jumpscare.png" alt="Huggy"> -->
 </div>
 
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
 <audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
-<audio id="bossMusic" src="chase music.mp3" loop></audio>
+<audio id="chaseMusic" src="chase music.mp3" loop></audio>
 <audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
-<!-- Optional jumpscare sound -->
 <audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
+// ===== BASIC SETUP =====
+let scene,camera,renderer;
+let player; // Object3D carrying camera
+let state="intro"; // intro, lobby, power_room, fuses, make_friend, chase, catwalks, poppy, dead, credits
+let keys={};
+let yaw=0,pitch=0;
+let velY=0;
+let huggy=null;
+let huggyChaseActive=false;
+let crate=null;
+let poppyCase=null;
 
-// ===== GLOBALS & STATE =====
-let scene,camera,renderer,player,catnap,generator,arenaDoor,protoDoor
-let state="title"
-let health=100
-let batteries=0
-let keys={}
-let yaw=0,pitch=0
-let velocityY=0
-let bossDoorOpen=false
-let protoTimer=0
-let catnapDead=false
-let generatorPowered=false
-let protoDoorOpen=false
-let catnapDeathTimer=0
+let inventory={
+  grabpackHands:0,
+  fuses:0,
+  toyCrafted:false
+};
 
-// UI refs
-const titleUI=document.getElementById("title")
-const endingUI=document.getElementById("ending")
-const healthBar=document.getElementById("healthBar")
-const healthBox=document.getElementById("healthBox")
-const crosshair=document.getElementById("crosshair")
-const flash=document.getElementById("flash")
-const hudText=document.getElementById("hudText")
-const infoText=document.getElementById("infoText")
-const jumpscare=document.getElementById("jumpscare")
+const titleUI=document.getElementById("title");
+const gameOverUI=document.getElementById("gameOver");
+const creditsUI=document.getElementById("credits");
+const hud=document.getElementById("hud");
+const info=document.getElementById("info");
+const crosshair=document.getElementById("crosshair");
+const jumpscare=document.getElementById("jumpscare");
 
-// Audio refs
-const titleMusic=document.getElementById("titleMusic")
-const hallMusic=document.getElementById("hallMusic")
-const bossMusic=document.getElementById("bossMusic")
-const protoMusic=document.getElementById("protoMusic")
-const jumpscareSound=document.getElementById("jumpscareSound")
+const titleMusic=document.getElementById("titleMusic");
+const hallMusic=document.getElementById("hallMusic");
+const chaseMusic=document.getElementById("chaseMusic");
+const protoMusic=document.getElementById("protoMusic");
+const jumpscareSound=document.getElementById("jumpscareSound");
 
-function fadeIn(a,v=1,d=2000){
-  a.volume=0
-  a.play().catch(()=>{})
-  let step=v/(d/50)
-  let i=setInterval(()=>{
-    a.volume=Math.min(v,a.volume+step)
-    if(a.volume>=v)clearInterval(i)
-  },50)
+function fadeIn(a,v=1,d=1500){
+  a.volume=0;
+  a.play().catch(()=>{});
+  const step=v/(d/50);
+  const id=setInterval(()=>{
+    a.volume=Math.min(v,a.volume+step);
+    if(a.volume>=v)clearInterval(id);
+  },50);
 }
-function fadeOut(a,d=2000){
-  let step=a.volume/(d/50 || 1)
-  let i=setInterval(()=>{
-    a.volume=Math.max(0,a.volume-step)
-    if(a.volume<=0){
-      a.pause()
-      clearInterval(i)
-    }
-  },50)
+function fadeOut(a,d=1500){
+  const step=(a.volume||0)/(d/50||1);
+  const id=setInterval(()=>{
+    a.volume=Math.max(0,a.volume-step);
+    if(a.volume<=0){a.pause();clearInterval(id);}
+  },50);
+}
+function stopAllMusic(){
+  [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
 
-// Title music
-fadeIn(titleMusic,.7)
+// pointer lock controls style
+const startBtn=document.getElementById("startBtn");
+const retryBtn=document.getElementById("retryBtn");
 
-document.getElementById("start").onclick=()=>{
-  fadeOut(titleMusic)
-  titleUI.style.display="none"
-  init()
-}
+fadeIn(titleMusic,.8);
 
-// ===== JUMPSCARE LOGIC =====
-let jumpscareCooldown = 0; // small cooldown so it isn't constant spam
+startBtn.onclick=()=>{
+  fadeOut(titleMusic,1000);
+  titleUI.style.display="none";
+  initScene();
+  setState("lobby"); // intro text is handled as overlay instead of a separate state for this skeleton
+};
 
-function triggerJumpscare(){
-  const now = performance.now();
-  if (now - jumpscareCooldown < 400) return; // cooldown ~0.4s
+retryBtn.onclick=()=>{
+  location.reload();
+};
 
-  jumpscareCooldown = now;
-
-  // show overlay briefly
+function triggerJumpscareAndDeath(){
+  if(state==="dead" || state==="credits")return;
+  state="dead";
+  huggyChaseActive=false;
+  stopAllMusic();
   jumpscare.style.display="flex";
-  flash.style.opacity=1;
   if(jumpscareSound){
     jumpscareSound.currentTime=0;
     jumpscareSound.play().catch(()=>{});
   }
   setTimeout(()=>{
     jumpscare.style.display="none";
-    flash.style.opacity=0;
-  }, 220); // quick scare
+    gameOverUI.style.display="flex";
+    crosshair.style.display="none";
+    hud.textContent="";
+    info.textContent="";
+  },600);
 }
 
-// ===== INIT SCENE =====
-function init(){
-  scene=new THREE.Scene()
-  scene.fog=new THREE.Fog(0x220000,10,220)
+// ===== THREE INIT =====
+function initScene(){
+  scene=new THREE.Scene();
+  scene.fog=new THREE.Fog(0x000000,10,120);
 
-  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,2000)
-  renderer=new THREE.WebGLRenderer({antialias:true})
-  renderer.setSize(innerWidth,innerHeight)
-  document.body.appendChild(renderer.domElement)
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,2000);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  document.body.appendChild(renderer.domElement);
 
   renderer.domElement.requestPointerLock=
     renderer.domElement.requestPointerLock||
-    renderer.domElement.mozRequestPointerLock
+    renderer.domElement.mozRequestPointerLock;
+  renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
 
-  renderer.domElement.addEventListener("click",
-    ()=>renderer.domElement.requestPointerLock())
+  scene.add(new THREE.AmbientLight(0x202030,0.4));
+  const flashlight=new THREE.SpotLight(0xffffff,1.4,40,Math.PI/7,0.5);
+  flashlight.castShadow=true;
+  camera.add(flashlight);
+  scene.add(camera);
 
-  // Lighting: red/Playcare vibe
-  scene.add(new THREE.AmbientLight(0xff0000,.3))
-  let light=new THREE.PointLight(0xff4444,2,80)
-  light.position.set(0,8,0)
-  scene.add(light)
+  player=new THREE.Object3D();
+  player.position.set(0,2,10);
+  scene.add(player);
+  player.add(camera);
 
-  const wallMat=new THREE.MeshStandardMaterial({color:0x333333})
-  const floorMat=new THREE.MeshStandardMaterial({color:0x222222})
+  crosshair.style.display="block";
 
-  function wall(x,y,z,w,h,d){
-    let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallMat)
-    m.position.set(x,y,z)
-    scene.add(m)
-    return m
-  }
-  function floor(x,z,w,d){
-    let m=new THREE.Mesh(new THREE.BoxGeometry(w,1,d),floorMat)
-    m.position.set(x,-0.5,z)
-    scene.add(m)
-    return m
-  }
+  document.addEventListener("mousemove",onMouseMove);
+  document.addEventListener("keydown",e=>{keys[e.code]=true; if(e.code==="KeyE")tryInteract();});
+  document.addEventListener("keyup",e=>{keys[e.code]=false;});
 
-  // ===== HALLWAY =====
-  floor(0,-70,20,240)
-  wall(-10,5,-70,1,10,240)
-  wall(10,5,-70,1,10,240)
-  wall(0,10,-70,20,1,240)
+  window.addEventListener("resize",()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
 
-  // ===== BOSS DOOR (to arena) =====
-  arenaDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
-  arenaDoor.position.set(0,4,-160)
-  scene.add(arenaDoor)
-
-  // ===== ARENA (bigger, square) =====
-  floor(0,-230,80,80)
-  wall(-40,5,-230,1,10,80)
-  wall(40,5,-230,1,10,80)
-  wall(0,10,-230,80,1,80)
-  wall(0,5,-270,80,10,1)
-
-  // ===== GENERATOR (center) =====
-  generator=new THREE.Mesh(
-    new THREE.CylinderGeometry(4,4,8,16),
-    new THREE.MeshStandardMaterial({color:0x00b0ff})
-  )
-  generator.position.set(0,4,-230)
-  generator.userData.generator=true
-  scene.add(generator)
-
-  // ===== BATTERIES (4) =====
-  for(let i=0;i<4;i++){
-    let b=new THREE.Mesh(
-      new THREE.BoxGeometry(2,2,2),
-      new THREE.MeshStandardMaterial({color:0xffff00})
-    )
-    b.position.set(
-      (Math.random()-0.5)*60,
-      1,
-      -230 + (Math.random()-0.5)*60
-    )
-    b.userData.battery=true
-    scene.add(b)
-  }
-
-  // ===== PROTOTYPE ROOM DOOR (locked until CatNap dies) =====
-  protoDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
-  protoDoor.position.set(0,4,-280)
-  scene.add(protoDoor)
-
-  // Prototype room floor & walls
-  floor(0,-295,40,40)
-  wall(-20,5,-295,1,10,40)
-  wall(20,5,-295,1,10,40)
-  wall(0,10,-315,40,1,40)
-
-  // ===== PROTOTYPE HAND & EYE =====
-  let hand=new THREE.Mesh(
-    new THREE.BoxGeometry(6,2,10),
-    new THREE.MeshStandardMaterial({color:0x555555})
-  )
-  hand.position.set(0,2,-300)
-  scene.add(hand)
-
-  let eye=new THREE.Mesh(
-    new THREE.SphereGeometry(2,16,16),
-    new THREE.MeshBasicMaterial({color:0xffff00})
-  )
-  eye.position.set(0,5,-310)
-  scene.add(eye)
-
-  // ===== PLAYER =====
-  player=new THREE.Object3D()
-  player.position.set(0,2,30)
-  scene.add(player)
-  player.add(camera)
-
-  healthBox.style.display="block"
-  crosshair.style.display="block"
-  state="hall"
-  bossDoorOpen=false
-  catnapDead=false
-  generatorPowered=false
-  protoDoorOpen=false
-  protoTimer=0
-  catnapDeathTimer=0
-  batteries=0
-  health=100
-  healthBar.style.width=health+"%"
-  hudText.textContent="Reach the end of the hallway.\nCatNap is behind you."
-  infoText.textContent="Batteries: 0 / 4"
-
-  fadeIn(hallMusic,.6)
-
-  // ===== CATNAP =====
-  let body=new THREE.Mesh(
-    new THREE.BoxGeometry(4,8,4),
-    new THREE.MeshStandardMaterial({color:0x2a0033})
-  )
-  let head=new THREE.Mesh(
-    new THREE.BoxGeometry(4,4,4),
-    new THREE.MeshStandardMaterial({color:0x2a0033})
-  )
-  head.position.y=6
-  body.add(head)
-  let eyeL=new THREE.Mesh(
-    new THREE.SphereGeometry(.5,8,8),
-    new THREE.MeshBasicMaterial({color:0xffffff})
-  )
-  let eyeR=eyeL.clone()
-  eyeL.position.set(-1,6.5,2.2)
-  eyeR.position.set(1,6.5,2.2)
-  body.add(eyeL);body.add(eyeR)
-  catnap=body
-  catnap.position.set(0,4,80)
-  scene.add(catnap)
-
-  animate()
+  buildSharedGeometry();
+  animate();
 }
 
-/* ===== CONTROLS ===== */
-document.addEventListener("mousemove",e=>{
-  if(document.pointerLockElement===renderer?.domElement){
-    yaw-=e.movementX*.002
-    pitch-=e.movementY*.002
-    pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch))
-    if(player){
-      player.rotation.y=yaw
-      camera.rotation.x=pitch
-    }
-  }
-})
-document.addEventListener("keydown",e=>keys[e.code]=true)
-document.addEventListener("keyup",e=>keys[e.code]=false)
+// ===== GEOMETRY HELPERS =====
+const wallMat=new THREE.MeshStandardMaterial({color:0x222244});
+const floorMat=new THREE.MeshStandardMaterial({color:0x111122});
+const accentMat=new THREE.MeshStandardMaterial({color:0x5555ff});
+const huggyMat=new THREE.MeshStandardMaterial({color:0x003366});
 
-/* ===== MAIN LOOP ===== */
+function makeRoom(group,width,depth,height=6){
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),floorMat);
+  floor.position.set(0,0,0);
+  floor.receiveShadow=true;
+  group.add(floor);
+
+  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),wallMat);
+  ceiling.position.set(0,height,0);
+  group.add(ceiling);
+
+  const wallF=new THREE.Mesh(new THREE.BoxGeometry(width,height,0.2),wallMat);
+  wallF.position.set(0,height/2,-depth/2);
+  group.add(wallF);
+
+  const wallB=wallF.clone();
+  wallB.position.z=depth/2;
+  group.add(wallB);
+
+  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.2,height,depth),wallMat);
+  wallL.position.set(-width/2,height/2,0);
+  group.add(wallL);
+
+  const wallR=wallL.clone();
+  wallR.position.x=width/2;
+  group.add(wallR);
+}
+
+// ===== BUILD STATIC LAYOUT (LOBBY, HALLS, MAKE-A-FRIEND, VENTS, CATWALKS, POPPY) =====
+let lobbyGroup, makeFriendGroup, ventGroup, catwalkGroup, poppyGroup;
+let lobbyDoorNext=null;
+let makeFriendGate=null;
+
+function buildSharedGeometry(){
+  // Lobby
+  lobbyGroup=new THREE.Group();
+  makeRoom(lobbyGroup,30,30,8);
+  lobbyGroup.position.set(0,0,0);
+  scene.add(lobbyGroup);
+
+  const huggyBody=new THREE.Mesh(new THREE.BoxGeometry(3,8,2.5),huggyMat);
+  const huggyHead=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),huggyMat);
+  huggyHead.position.y=5.5;
+  huggyBody.add(huggyHead);
+  huggyBody.position.set(0,4,-5);
+  lobbyGroup.add(huggyBody);
+  huggy=huggyBody;
+
+  const greenTape=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.2),new THREE.MeshStandardMaterial({color:0x00ff00}));
+  greenTape.position.set(-5,1.2,2);
+  greenTape.userData.type="tape_lobby";
+  lobbyGroup.add(greenTape);
+
+  lobbyDoorNext=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.3),accentMat);
+  lobbyDoorNext.position.set(0,3,-15);
+  lobbyDoorNext.userData.type="door_to_factory";
+  scene.add(lobbyDoorNext);
+
+  // Make-A-Friend simplified
+  makeFriendGroup=new THREE.Group();
+  makeRoom(makeFriendGroup,40,40,10);
+  makeFriendGroup.position.set(0,0,-80);
+  scene.add(makeFriendGroup);
+
+  const belt=new THREE.Mesh(new THREE.BoxGeometry(20,0.5,3),new THREE.MeshStandardMaterial({color:0x333333}));
+  belt.position.set(0,0.6,0);
+  makeFriendGroup.add(belt);
+
+  const powerNode1=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffaa00}));
+  powerNode1.position.set(-8,3,-10);
+  powerNode1.userData.type="power_node";
+  makeFriendGroup.add(powerNode1);
+
+  const powerNode2=powerNode1.clone();
+  powerNode2.position.set(8,3,-10);
+  makeFriendGroup.add(powerNode2);
+
+  const powerNode3=powerNode1.clone();
+  powerNode3.position.set(0,3,10);
+  makeFriendGroup.add(powerNode3);
+
+  makeFriendGate=new THREE.Mesh(new THREE.BoxGeometry(8,6,0.5),accentMat);
+  makeFriendGate.position.set(0,3,20);
+  makeFriendGate.userData.type="toy_gate";
+  makeFriendGroup.add(makeFriendGate);
+
+  // Vents – straight corridor for now
+  ventGroup=new THREE.Group();
+  makeRoom(ventGroup,8,60,5);
+  ventGroup.position.set(0,0,-140);
+  scene.add(ventGroup);
+
+  // Catwalks + crate
+  catwalkGroup=new THREE.Group();
+  const catFloor=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,40),new THREE.MeshStandardMaterial({color:0x444444}));
+  catFloor.position.set(0,5,-190);
+  catwalkGroup.add(catFloor);
+  crate=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),new THREE.MeshStandardMaterial({color:0x666666}));
+  crate.position.set(0,10,-200);
+  crate.userData.type="crate";
+  catwalkGroup.add(crate);
+  scene.add(catwalkGroup);
+
+  // Poppy room
+  poppyGroup=new THREE.Group();
+  makeRoom(poppyGroup,20,20,8);
+  poppyGroup.position.set(0,0,-240);
+  poppyCase=new THREE.Mesh(new THREE.BoxGeometry(3,5,3),new THREE.MeshStandardMaterial({color:0x9999ff,transparent:true,opacity:0.3}));
+  poppyCase.position.set(0,3,-5);
+  poppyCase.userData.type="poppy_case";
+  poppyGroup.add(poppyCase);
+  scene.add(poppyGroup);
+}
+
+// ===== STATE MACHINE =====
+function setState(newState){
+  state=newState;
+  switch(newState){
+    case "lobby":
+      player.position.set(0,2,10);
+      hud.textContent="LOBBY\nFind the green tape.";
+      info.textContent="Hands: 0 | Fuses: 0 | Toy: no";
+      stopAllMusic();
+      fadeIn(hallMusic,.7);
+      break;
+    case "power_room":
+      hud.textContent="POWER ROOM\n(Stub) Imagine rerouting electricity.\nThen return to the lobby.";
+      break;
+    case "fuses":
+      hud.textContent="FUSE AREA\n(Stub) Collect fuses and restore power.\nThen you get the red hand.";
+      inventory.grabpackHands=2;
+      info.textContent=`Hands: ${inventory.grabpackHands} | Fuses: 4 | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+      break;
+    case "make_friend":
+      hud.textContent="MAKE-A-FRIEND\nPower all nodes to start the machine.\nThen grab the toy and open the gate.";
+      break;
+    case "chase":
+      hud.textContent="VENT CHASE\nRun. If Huggy catches you, you die.";
+      stopAllMusic();
+      fadeIn(chaseMusic,.9);
+      huggyChaseActive=true;
+      break;
+    case "catwalks":
+      hud.textContent="CATWALKS\nDrop the crate on Huggy.";
+      stopAllMusic();
+      fadeIn(chaseMusic,.9);
+      break;
+    case "poppy":
+      hud.textContent="POPPY'S ROOM\nOpen the case.";
+      stopAllMusic();
+      fadeIn(protoMusic,.7);
+      break;
+    case "credits":
+      hud.textContent="";
+      info.textContent="";
+      creditsUI.style.display="flex";
+      break;
+  }
+}
+
+// ===== INPUT / MOVEMENT =====
+function onMouseMove(e){
+  if(document.pointerLockElement!==renderer?.domElement)return;
+  yaw-=e.movementX*0.002;
+  pitch-=e.movementY*0.002;
+  pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
+  player.rotation.y=yaw;
+  camera.rotation.x=pitch;
+}
+
+function tryInteract(){
+  if(state==="dead"||state==="credits")return;
+  const pos=player.position;
+  // Very rough interaction distances
+  // Lobby tape
+  lobbyGroup?.traverse(o=>{
+    if(o.userData.type==="tape_lobby" && o.position.distanceTo(pos)<2){
+      hud.textContent="LOBBY\nTape: \"Please obey company policies.\"\nSecurity Office unlocked. (Stub)";
+    }
+  });
+  // Poppy case
+  if(poppyCase && poppyCase.position.clone().add(poppyGroup.position).distanceTo(pos)<3 && state==="poppy"){
+    creditsUI.style.display="flex";
+    state="credits";
+  }
+}
+
+// ===== MAIN ANIMATION LOOP =====
 function animate(){
-  requestAnimationFrame(animate)
-  if(!scene)return
-  const delta=.016
+  requestAnimationFrame(animate);
+  if(!scene)return;
+  const dt=0.016;
 
-  // Movement
-  if(state!=="ending"){
-    let forward=new THREE.Vector3()
-    camera.getWorldDirection(forward)
-    forward.y=0;forward.normalize()
-    let right=new THREE.Vector3()
-    right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize()
-    let move=new THREE.Vector3()
-    if(keys["KeyW"])move.add(forward)
-    if(keys["KeyS"])move.sub(forward)
-    if(keys["KeyA"])move.sub(right)
-    if(keys["KeyD"])move.add(right)
-    if(move.lengthSq()>0)move.normalize()
-    player.position.addScaledVector(move,9*delta)
+  if(state!=="dead" && state!=="credits"){
+    // movement
+    let forward=new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y=0;forward.normalize();
+    let right=new THREE.Vector3();
+    right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
 
-    // Constrain hall/arena roughly by walls
-    if(player.position.x<-9.5)player.position.x=-9.5
-    if(player.position.x>9.5)player.position.x=9.5
+    let move=new THREE.Vector3();
+    if(keys["KeyW"])move.add(forward);
+    if(keys["KeyS"])move.sub(forward);
+    if(keys["KeyA"])move.sub(right);
+    if(keys["KeyD"])move.add(right);
+    if(move.lengthSq()>0)move.normalize();
 
-    // Jump & gravity
-    velocityY-=30*delta
-    if(keys["Space"]&&player.position.y<=2.01)velocityY=12
-    player.position.y+=velocityY*delta
-    if(player.position.y<2){player.position.y=2;velocityY=0}
-  }
+    player.position.addScaledVector(move,6*dt);
 
-  // CatNap chase & damage
-  if(state!=="ending" && !catnapDead){
-    let dir=new THREE.Vector3().subVectors(player.position,catnap.position)
-    dir.y=0
-    let dist=dir.length()
-    if(dist>0.01)dir.normalize()
-    let speed=(state==="hall")?5:7
-    catnap.position.addScaledVector(dir,speed*delta)
-    catnap.lookAt(player.position)
+    velY-=25*dt;
+    if(keys["Space"] && player.position.y<=2.01)velY=10;
+    player.position.y+=velY*dt;
+    if(player.position.y<2){player.position.y=2;velY=0;}
 
-    if(dist<3){
-      // Damage + jumpscare every time he hits you
-      const previousHealth = health
-      health-=0.9
-      if(health<0)health=0
-      if(health<previousHealth){
-        triggerJumpscare()
+    // Simple state transitions (very approximate)
+    if(state==="lobby"){
+      if(player.position.z<-12){
+        setState("power_room");
       }
-      healthBar.style.width=health+"%"
-    }
-  }
-
-  // Hall → Boss door opening
-  if(state==="hall" && player.position.z<-150 && !bossDoorOpen){
-    arenaDoor.position.y+=10*delta
-    if(arenaDoor.position.y>20){
-      bossDoorOpen=true
-      fadeOut(hallMusic,1500)
-      fadeIn(bossMusic,.8,1500)
-      state="boss"
-      hudText.textContent="Boss arena.\nCollect all batteries, then interact (E) with the generator."
-    }
-  }
-
-  // Boss logic
-  if(state==="boss"){
-    if(player.position.x<-39)player.position.x=-39
-    if(player.position.x>39)player.position.x=39
-    if(player.position.z<-270)player.position.z=-270
-    if(player.position.z>-190)player.position.z=-190
-
-    // Collect batteries
-    scene.traverse(o=>{
-      if(o.userData && o.userData.battery){
-        let d=o.position.distanceTo(player.position)
-        if(d<3){
-          o.userData.battery=false
-          scene.remove(o)
-          batteries++
-          infoText.textContent=`Batteries: ${batteries} / 4`
-        }
+    }else if(state==="power_room"){
+      if(player.position.z>8){
+        // leave power room → Huggy gone, go toward factory halls
+        setState("fuses");
       }
-    })
-
-    // Power generator once when you have all batteries
-    if(batteries>=4 &&
-       player.position.distanceTo(generator.position)<7 &&
-       keys["KeyE"] &&
-       !generatorPowered){
-      generatorPowered=true
-      generator.material.color.set(0x00ff00)
-      hudText.textContent="Generator powered.\nThe red cat goes quiet…"
-      catnapDeathTimer=0
-    }
-
-    // CatNap death after generator power
-    if(generatorPowered && !catnapDead){
-      catnapDeathTimer+=delta
-      if(catnapDeathTimer>1.2){
-        catnapDead=true
-        catnap.visible=false
-        fadeOut(bossMusic,1500)
-        hudText.textContent="It’s finally quiet.\nSomething opens deeper in Playcare…"
+    }else if(state==="fuses"){
+      if(player.position.z<-40){
+        setState("make_friend");
+      }
+    }else if(state==="make_friend"){
+      if(player.position.z<-100){
+        setState("chase");
+      }
+    }else if(state==="chase"){
+      if(player.position.z<-160){
+        // reached end of vents without dying
+        setState("catwalks");
+        stopAllMusic();
+        fadeIn(chaseMusic,.9);
+      }
+    }else if(state==="catwalks"){
+      if(player.position.z<-210){
+        setState("poppy");
       }
     }
 
-    // Open Prototype door
-    if(catnapDead && !protoDoorOpen){
-      protoDoor.position.y+=15*delta
-      if(protoDoor.position.y>20){
-        protoDoorOpen=true
+    // Simple Huggy chase in vent state
+    if(state==="chase" && huggy && huggyChaseActive){
+      const target=player.position.clone();
+      const pos=huggy.position;
+      const dir=target.sub(pos);dir.y=0;
+      const d=dir.length();
+      if(d>0.01)dir.normalize();
+      huggy.position.addScaledVector(dir,8*dt);
+      if(d<2.5){
+        triggerJumpscareAndDeath();
       }
     }
-
-    // Enter Prototype room
-    if(protoDoorOpen && player.position.z<-275){
-      state="proto"
-      fadeIn(protoMusic,.7,1500)
-      hudText.textContent="A mechanical hand waits ahead.\nYou are being watched."
-    }
   }
 
-  // Prototype / ending
-  if(state==="proto"){
-    protoTimer+=delta
-    if(protoTimer>9){
-      endingUI.style.display="flex"
-      state="ending"
-      hudText.textContent=""
-      infoText.textContent=""
-    }
-  }
-
-  // Death reset
-  if(health<=0 && state!=="ending"){
-    location.reload()
-  }
-
-  renderer.render(scene,camera)
+  renderer.render(scene,camera);
 }
-
-window.addEventListener("resize",()=>{
-  if(!camera || !renderer)return
-  camera.aspect=innerWidth/innerHeight
-  camera.updateProjectionMatrix()
-  renderer.setSize(innerWidth,innerHeight)
-})
 
 </script>
 </body>
