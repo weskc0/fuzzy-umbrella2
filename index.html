@@ -2,67 +2,127 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Poppy Playtime – Chapter 1 (Web)</title>
+<title>PROJECT: PLAYCARE</title>
 <style>
 body{
   margin:0;
   overflow:hidden;
-  background:black;
+  background:#02030a;
   font-family:Arial, system-ui, sans-serif;
+  color:white;
 }
-#title,#gameOver,#credits{
+
+/* TITLE SCREEN */
+#titleScreen{
   position:absolute;
   inset:0;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  background:black;
-  color:white;
+  background:radial-gradient(circle at 50% 20%, #181824 0, #050611 55%, #000 100%);
   z-index:20;
 }
-#title h1{
-  font-size:52px;
-  margin:0 0 10px 0;
-  letter-spacing:3px;
-}
-#title p{
-  max-width:520px;
+#titleLogo{
+  font-size:54px;
+  letter-spacing:6px;
+  margin:0;
+  text-transform:uppercase;
   text-align:center;
-  font-size:14px;
-  opacity:.85;
-  margin:4px 0;
-  white-space:pre-line;
 }
-button{
-  padding:10px 24px;
-  margin-top:16px;
+#titleLogo span{
+  display:block;
+}
+#titleLogo span:nth-child(1){
+  font-size:18px;
+  letter-spacing:8px;
+  color:#ff4a4a;
+}
+#titleLogo span:nth-child(2){
+  margin-top:6px;
+}
+#titleSubtitle{
+  margin-top:4px;
+  font-size:14px;
+  opacity:.75;
+  text-align:center;
+  animation:subtitlePulse 2.4s ease-in-out infinite;
+}
+@keyframes subtitlePulse{
+  0%,100%{opacity:.4;}
+  50%{opacity:1;}
+}
+#titleButtons{
+  margin-top:30px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.titleBtn{
+  padding:10px 30px;
   font-size:16px;
-  cursor:pointer;
-  background:#ff2222;
+  letter-spacing:2px;
+  text-transform:uppercase;
   border:none;
   border-radius:4px;
+  cursor:pointer;
+  background:#ff2222;
   color:white;
+  transition:background .15s, transform .1s, box-shadow .15s;
 }
-button:hover{
+.titleBtn:hover{
   background:#ff4444;
+  transform:translateY(-1px);
+  box-shadow:0 0 12px rgba(255,60,60,0.5);
 }
-#gameOver h1{
-  font-size:40px;
-  letter-spacing:4px;
-  margin-bottom:10px;
+
+/* SETTINGS PANEL */
+#settingsPanel{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:320px;
+  padding:16px 18px;
+  background:rgba(0,0,0,0.88);
+  border:1px solid #444;
+  box-shadow:0 0 18px rgba(0,0,0,0.8);
+  display:none;
+  z-index:25;
 }
-#gameOver p,#credits p{
-  font-size:14px;
-  opacity:.9;
-  max-width:420px;
-  text-align:center;
-  white-space:pre-line;
+#settingsPanel h2{
+  margin:0 0 10px 0;
+  font-size:18px;
+  letter-spacing:2px;
 }
-#credits h1{
-  font-size:32px;
-  letter-spacing:3px;
+.settingRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:8px 0;
+  font-size:13px;
 }
+.settingRow input[type=range]{
+  width:160px;
+}
+.settingRow input[type=checkbox]{
+  transform:scale(1.1);
+}
+#settingsClose{
+  margin-top:12px;
+  padding:6px 14px;
+  font-size:13px;
+  border:none;
+  border-radius:4px;
+  background:#444;
+  color:white;
+  cursor:pointer;
+}
+#settingsClose:hover{
+  background:#666;
+}
+
+/* BASIC HUD STUBS (for when game runs) */
 #hud,#info{
   position:absolute;
   left:20px;
@@ -72,6 +132,7 @@ button:hover{
   text-shadow:0 0 4px #000;
   z-index:5;
   white-space:pre-line;
+  display:none;
 }
 #info{
   left:auto;
@@ -90,463 +151,266 @@ button:hover{
   display:none;
   z-index:5;
 }
-#jumpscare{
-  position:absolute;
+
+/* Placeholder for canvas */
+#gameCanvas{
+  position:fixed;
   inset:0;
-  background:black;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:25;
-}
-#jumpscare img{
-  max-width:100%;
-  max-height:100%;
-  object-fit:contain;
+  display:block;
 }
 </style>
 </head>
 <body>
 
-<div id="title">
-  <h1>POPPY PLAYTIME – CHAPTER 1</h1>
-  <p>
-A Three.js fan remake of A Tight Squeeze.
-
-You’re an ex-employee returning to Playtime Co.
-The staff vanished years ago.
-
-Letter. Lobby. Huggy. Vents. The Flower.
-
-Controls:
-WASD – move
-Mouse – look
-SPACE – jump
-E – interact
-F – flashlight
-  </p>
-  <button id="startBtn">START</button>
+<!-- TITLE SCREEN -->
+<div id="titleScreen">
+  <h1 id="titleLogo">
+    <span>PROJECT</span>
+    <span>PLAYCARE</span>
+  </h1>
+  <div id="titleSubtitle">Click to begin. The factory has been waiting for you.</div>
+  <div id="titleButtons">
+    <button class="titleBtn" id="playBtn">Play</button>
+    <button class="titleBtn" id="settingsBtn">Settings</button>
+    <button class="titleBtn" id="quitBtn">Quit</button>
+  </div>
 </div>
 
-<div id="gameOver" style="display:none;">
-  <h1>YOU DIED</h1>
-  <p>Huggy found you in the dark.\n\nPress RETRY to try again from the lobby.</p>
-  <button id="retryBtn">RETRY</button>
+<!-- SETTINGS PANEL -->
+<div id="settingsPanel">
+  <h2>SETTINGS</h2>
+  <div class="settingRow">
+    <span>Master Volume</span>
+    <input id="volumeSlider" type="range" min="0" max="100" value="75">
+  </div>
+  <div class="settingRow">
+    <span>Mouse Sensitivity</span>
+    <input id="sensSlider" type="range" min="20" max="200" value="80">
+  </div>
+  <div class="settingRow">
+    <span>Flashlight Enabled</span>
+    <input id="flashToggle" type="checkbox" checked>
+  </div>
+  <button id="settingsClose">Back</button>
 </div>
 
-<div id="credits" style="display:none;">
-  <h1>CHAPTER 1 COMPLETE</h1>
-  <p>You opened Poppy’s case.\nShe’s finally awake.\n\nThanks for playing this web fan game.</p>
-</div>
-
+<!-- BASIC GAME HUD ELEMENTS (you wire them to your chapter logic) -->
 <div id="hud"></div>
 <div id="info"></div>
 <div id="crosshair"></div>
 
-<div id="jumpscare">
-  <!-- optional: <img src="huggy_jumpscare.png" alt="Huggy"> -->
-</div>
-
+<!-- AUDIO (TITLE + IN-GAME) -->
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
 <audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
 <audio id="chaseMusic" src="chase music.mp3" loop></audio>
 <audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
-<audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
+<!-- THREE.JS + GAME SCRIPT -->
+<canvas id="gameCanvas"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
-// ===== GLOBALS =====
-let scene,camera,renderer;
-let player;
-let state="intro"; // lobby, power_room, fuses, make_friend, chase, catwalks, poppy, dead, credits
-let keys={};
-let yaw=0,pitch=0;
-let velY=0;
-let huggy=null;
-let huggyChaseActive=false;
-let crate=null;
-let poppyCase=null;
-let flashlight, flashlightOn=true;
+// ===== TITLE SCREEN + SETTINGS LOGIC =====
+const titleScreen=document.getElementById("titleScreen");
+const playBtn=document.getElementById("playBtn");
+const settingsBtn=document.getElementById("settingsBtn");
+const quitBtn=document.getElementById("quitBtn");
 
-let inventory={
-  grabpackHands:0,
-  fuses:0,
-  toyCrafted:false
-};
+const settingsPanel=document.getElementById("settingsPanel");
+const settingsClose=document.getElementById("settingsClose");
+const volumeSlider=document.getElementById("volumeSlider");
+const sensSlider=document.getElementById("sensSlider");
+const flashToggle=document.getElementById("flashToggle");
 
-const collisionBoxes=[]; // Box3s for walls/floors
-
-// UI
-const titleUI=document.getElementById("title");
-const gameOverUI=document.getElementById("gameOver");
-const creditsUI=document.getElementById("credits");
-const hud=document.getElementById("hud");
-const info=document.getElementById("info");
-const crosshair=document.getElementById("crosshair");
-const jumpscare=document.getElementById("jumpscare");
-
-// Audio
 const titleMusic=document.getElementById("titleMusic");
 const hallMusic=document.getElementById("hallMusic");
 const chaseMusic=document.getElementById("chaseMusic");
 const protoMusic=document.getElementById("protoMusic");
-const jumpscareSound=document.getElementById("jumpscareSound");
 
-function fadeIn(a,v=1,d=1500){
-  a.volume=0;
-  a.play().catch(()=>{});
-  const step=v/(d/50);
+const hud=document.getElementById("hud");
+const info=document.getElementById("info");
+const crosshair=document.getElementById("crosshair");
+
+// global options used by the game
+const options={
+  masterVolume:0.75,
+  mouseSensitivity:0.8/100, // scaled from slider
+  flashlightEnabled:true
+};
+
+function fadeIn(audio,target=0.75,duration=1500){
+  audio.volume=0;
+  audio.play().catch(()=>{});
+  const step=target/(duration/50);
   const id=setInterval(()=>{
-    a.volume=Math.min(v,a.volume+step);
-    if(a.volume>=v)clearInterval(id);
+    audio.volume=Math.min(target,audio.volume+step);
+    if(audio.volume>=target)clearInterval(id);
   },50);
 }
-function fadeOut(a,d=1500){
-  const step=(a.volume||0)/(d/50||1);
+function fadeOut(audio,duration=1500){
+  const step=(audio.volume||0)/(duration/50||1);
   const id=setInterval(()=>{
-    a.volume=Math.max(0,a.volume-step);
-    if(a.volume<=0){a.pause();clearInterval(id);}
+    audio.volume=Math.max(0,audio.volume-step);
+    if(audio.volume<=0){audio.pause();clearInterval(id);}
   },50);
 }
 function stopAllMusic(){
   [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
 
-// Intro music
-fadeIn(titleMusic,.8);
-
-// Buttons
-const startBtn=document.getElementById("startBtn");
-const retryBtn=document.getElementById("retryBtn");
-
-startBtn.onclick=()=>{
-  fadeOut(titleMusic,1000);
-  titleUI.style.display="none";
-  initScene();
-  setState("lobby");
-};
-
-retryBtn.onclick=()=>{
-  location.reload();
-};
-
-function triggerJumpscareAndDeath(){
-  if(state==="dead" || state==="credits")return;
-  state="dead";
-  huggyChaseActive=false;
-  stopAllMusic();
-  jumpscare.style.display="flex";
-  if(jumpscareSound){
-    jumpscareSound.currentTime=0;
-    jumpscareSound.play().catch(()=>{});
-  }
-  setTimeout(()=>{
-    jumpscare.style.display="none";
-    gameOverUI.style.display="flex";
-    crosshair.style.display="none";
-    hud.textContent="";
-    info.textContent="";
-  },600);
+// Apply master volume
+function applyMasterVolume(){
+  const tracks=[titleMusic,hallMusic,chaseMusic,protoMusic];
+  tracks.forEach(a=>{
+    a.volume=options.masterVolume;
+  });
 }
+volumeSlider.addEventListener("input",()=>{
+  options.masterVolume=Number(volumeSlider.value)/100;
+  applyMasterVolume();
+});
 
-// ===== THREE SETUP =====
-function initScene(){
-  scene=new THREE.Scene();
-  scene.fog=new THREE.Fog(0x111118,15,120); // darker bluish fog, still readable [web:43]
+// Mouse sensitivity (used by game camera)
+sensSlider.addEventListener("input",()=>{
+  options.mouseSensitivity=Number(sensSlider.value)/1000; // e.g. 0.02–0.2
+});
 
-  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,2000);
-  renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(innerWidth,innerHeight);
+// Flashlight toggle
+flashToggle.addEventListener("change",()=>{
+  options.flashlightEnabled=flashToggle.checked;
+  if(window.gameFlashlight){
+    gameFlashlight.visible=options.flashlightEnabled;
+  }
+});
+
+// Settings open/close
+settingsBtn.onclick=()=>{
+  settingsPanel.style.display="block";
+};
+settingsClose.onclick=()=>{
+  settingsPanel.style.display="none";
+};
+quitBtn.onclick=()=>{
+  // For web, "Quit" just hides title – nothing else to do.
+  titleScreen.style.display="none";
+};
+
+// Start title music
+applyMasterVolume();
+fadeIn(titleMusic,options.masterVolume);
+
+// When PLAY is clicked, fade out title music and start the game
+playBtn.onclick=()=>{
+  fadeOut(titleMusic,800);
+  titleScreen.style.display="none";
+  settingsPanel.style.display="none";
+  startGame();
+};
+
+// ===== THREE.JS GAME BOOTSTRAP (STUB) =====
+// This is where you plug in your existing Project: Playcare chapter code.
+// The variable `options` gives you masterVolume, mouseSensitivity, flashlightEnabled.
+// The global `gameFlashlight` is referenced for toggling.
+
+let scene,camera,renderer,player,gameFlashlight;
+let yaw=0,pitch=0;
+const keys={};
+
+function startGame(){
+  // Basic scene init; replace/extend with your chapter logic
+  const canvas=document.getElementById("gameCanvas");
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio||1);
   renderer.shadowMap.enabled=true;
-  document.body.appendChild(renderer.domElement);
 
-  renderer.domElement.requestPointerLock=
-    renderer.domElement.requestPointerLock||
-    renderer.domElement.mozRequestPointerLock;
-  renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
+  scene=new THREE.Scene();
+  scene.fog=new THREE.Fog(0x111118,15,120);
 
-  // Lights: brighter but abandoned
-  const ambient=new THREE.AmbientLight(0x404050,0.5); // soft cool ambient [web:43][web:45]
-  scene.add(ambient);
-
-  flashlight=new THREE.SpotLight(0xffffff,2.2,60,Math.PI/8,0.4);
-  flashlight.castShadow=true;
-  flashlight.position.set(0,0,0);
-  camera.add(flashlight);
-  scene.add(camera);
-
-  // Some overhead factory lights (cool/desaturated)
-  const overhead1=new THREE.PointLight(0x88aaff,0.7,40);
-  overhead1.position.set(0,7,0);
-  scene.add(overhead1);
-
-  const overhead2=new THREE.PointLight(0x6688aa,0.6,40);
-  overhead2.position.set(0,7,-40);
-  scene.add(overhead2);
-
+  camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
   player=new THREE.Object3D();
   player.position.set(0,2,10);
   scene.add(player);
   player.add(camera);
 
+  // Lights
+  const ambient=new THREE.AmbientLight(0x404050,0.5);
+  scene.add(ambient);
+
+  gameFlashlight=new THREE.SpotLight(0xffffff,2.2,60,Math.PI/8,0.4);
+  gameFlashlight.castShadow=true;
+  camera.add(gameFlashlight);
+  scene.add(camera);
+  gameFlashlight.visible=options.flashlightEnabled;
+
+  // Simple room
+  const floorMat=new THREE.MeshStandardMaterial({color:0x181a24,roughness:0.9});
+  const wallMat=new THREE.MeshStandardMaterial({color:0x202434,roughness:0.8});
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(20,0.2,20),floorMat);
+  floor.position.set(0,0,0);
+  floor.receiveShadow=true;
+  scene.add(floor);
+
+  const wallF=new THREE.Mesh(new THREE.BoxGeometry(20,6,0.2),wallMat);
+  wallF.position.set(0,3,-10);
+  scene.add(wallF);
+
+  const wallB=wallF.clone();
+  wallB.position.z=10;
+  scene.add(wallB);
+
+  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.2,6,20),wallMat);
+  wallL.position.set(-10,3,0);
+  scene.add(wallL);
+
+  const wallR=wallL.clone();
+  wallR.position.x=10;
+  scene.add(wallR);
+
+  // HUD visible once game starts
+  hud.style.display="block";
+  info.style.display="block";
   crosshair.style.display="block";
+  hud.textContent="PROJECT: PLAYCARE\n(Prototype room)\nMove with WASD, look with mouse.";
+  info.textContent="Settings: ESC → browser.\nVolume/sensitivity via Settings on title.";
 
-  document.addEventListener("mousemove",onMouseMove);
-  document.addEventListener("keydown",onKeyDown);
-  document.addEventListener("keyup",e=>{keys[e.code]=false;});
+  // Pointer lock + movement
+  renderer.domElement.requestPointerLock=
+    renderer.domElement.requestPointerLock||
+    renderer.domElement.mozRequestPointerLock;
+  renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
 
-  window.addEventListener("resize",()=>{
-    camera.aspect=innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth,innerHeight);
+  document.addEventListener("mousemove",(e)=>{
+    if(document.pointerLockElement!==renderer.domElement)return;
+    yaw-=e.movementX*options.mouseSensitivity;
+    pitch-=e.movementY*options.mouseSensitivity;
+    pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
+    player.rotation.y=yaw;
+    camera.rotation.x=pitch;
   });
 
-  buildGeometry();
+  document.addEventListener("keydown",(e)=>{keys[e.code]=true;});
+  document.addEventListener("keyup",(e)=>{keys[e.code]=false;});
+
+  window.addEventListener("resize",()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+
+  // Start in-game music (e.g. lobby/hall music)
+  stopAllMusic();
+  applyMasterVolume();
+  fadeIn(hallMusic,options.masterVolume);
+
   animate();
 }
 
-function onKeyDown(e){
-  keys[e.code]=true;
-  if(e.code==="KeyE")tryInteract();
-  if(e.code==="KeyF"){
-    flashlightOn=!flashlightOn;
-    flashlight.visible=flashlightOn;
-  }
-}
-
-// ===== GEOMETRY & COLLISION =====
-const collisionMeshes=[];
-
-const wallMat=new THREE.MeshStandardMaterial({color:0x202434,roughness:0.8,metalness:0.1});
-const floorMat=new THREE.MeshStandardMaterial({color:0x181a24,roughness:0.9});
-const accentMat=new THREE.MeshStandardMaterial({color:0x5555ff,roughness:0.6});
-const huggyMat=new THREE.MeshStandardMaterial({color:0x003366});
-
-function addCollisionBoxFromMesh(mesh){
-  const box=new THREE.Box3().setFromObject(mesh);
-  collisionBoxes.push(box);
-  collisionMeshes.push(mesh);
-}
-
-function makeRoom(group,width,depth,height=6){
-  // Floor
-  const floor=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),floorMat);
-  floor.position.set(0,0,0);
-  floor.receiveShadow=true;
-  group.add(floor);
-  addCollisionBoxFromMesh(floor);
-
-  // Ceiling
-  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(width,0.2,depth),wallMat);
-  ceiling.position.set(0,height,0);
-  group.add(ceiling);
-  // (no collision needed for ceiling)
-
-  const wallF=new THREE.Mesh(new THREE.BoxGeometry(width,height,0.2),wallMat);
-  wallF.position.set(0,height/2,-depth/2);
-  group.add(wallF);
-  addCollisionBoxFromMesh(wallF);
-
-  const wallB=wallF.clone();
-  wallB.position.z=depth/2;
-  group.add(wallB);
-  addCollisionBoxFromMesh(wallB);
-
-  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.2,height,depth),wallMat);
-  wallL.position.set(-width/2,height/2,0);
-  group.add(wallL);
-  addCollisionBoxFromMesh(wallL);
-
-  const wallR=wallL.clone();
-  wallR.position.x=width/2;
-  group.add(wallR);
-  addCollisionBoxFromMesh(wallR);
-}
-
-let lobbyGroup, makeFriendGroup, ventGroup, catwalkGroup, poppyGroup;
-let lobbyDoorNext=null;
-let makeFriendGate=null;
-
-function buildGeometry(){
-  // LOBBY
-  lobbyGroup=new THREE.Group();
-  makeRoom(lobbyGroup,30,30,8);
-  lobbyGroup.position.set(0,0,0);
-  scene.add(lobbyGroup);
-
-  const huggyBody=new THREE.Mesh(new THREE.BoxGeometry(3,8,2.5),huggyMat);
-  const huggyHead=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),huggyMat);
-  huggyHead.position.y=5.5;
-  huggyBody.add(huggyHead);
-  huggyBody.position.set(0,4,-5);
-  huggyBody.castShadow=true;
-  lobbyGroup.add(huggyBody);
-  huggy=huggyBody;
-
-  const greenTape=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.2),new THREE.MeshStandardMaterial({color:0x00ff00}));
-  greenTape.position.set(-5,1.2,2);
-  greenTape.userData.type="tape_lobby";
-  lobbyGroup.add(greenTape);
-
-  lobbyDoorNext=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.3),accentMat);
-  lobbyDoorNext.position.set(0,3,-15);
-  lobbyDoorNext.userData.type="door_to_factory";
-  scene.add(lobbyDoorNext);
-  addCollisionBoxFromMesh(lobbyDoorNext);
-
-  // MAKE-A-FRIEND
-  makeFriendGroup=new THREE.Group();
-  makeRoom(makeFriendGroup,40,40,10);
-  makeFriendGroup.position.set(0,0,-80);
-  scene.add(makeFriendGroup);
-
-  const belt=new THREE.Mesh(new THREE.BoxGeometry(20,0.5,3),new THREE.MeshStandardMaterial({color:0x333333}));
-  belt.position.set(0,0.6,0);
-  belt.receiveShadow=true;
-  makeFriendGroup.add(belt);
-
-  const powerNode1=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffaa00}));
-  powerNode1.position.set(-8,3,-10);
-  powerNode1.userData.type="power_node";
-  makeFriendGroup.add(powerNode1);
-
-  const powerNode2=powerNode1.clone();
-  powerNode2.position.set(8,3,-10);
-  makeFriendGroup.add(powerNode2);
-
-  const powerNode3=powerNode1.clone();
-  powerNode3.position.set(0,3,10);
-  makeFriendGroup.add(powerNode3);
-
-  makeFriendGate=new THREE.Mesh(new THREE.BoxGeometry(8,6,0.5),accentMat);
-  makeFriendGate.position.set(0,3,20);
-  makeFriendGate.userData.type="toy_gate";
-  makeFriendGroup.add(makeFriendGate);
-  addCollisionBoxFromMesh(makeFriendGate);
-
-  // VENTS
-  ventGroup=new THREE.Group();
-  makeRoom(ventGroup,8,60,5);
-  ventGroup.position.set(0,0,-140);
-  scene.add(ventGroup);
-
-  // CATWALKS
-  catwalkGroup=new THREE.Group();
-  const catFloor=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,40),new THREE.MeshStandardMaterial({color:0x444444}));
-  catFloor.position.set(0,5,-190);
-  catFloor.receiveShadow=true;
-  catwalkGroup.add(catFloor);
-  addCollisionBoxFromMesh(catFloor);
-
-  crate=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),new THREE.MeshStandardMaterial({color:0x666666}));
-  crate.position.set(0,10,-200);
-  crate.castShadow=true;
-  crate.userData.type="crate";
-  catwalkGroup.add(crate);
-  scene.add(catwalkGroup);
-
-  // POPPY ROOM
-  poppyGroup=new THREE.Group();
-  makeRoom(poppyGroup,20,20,8);
-  poppyGroup.position.set(0,0,-240);
-  scene.add(poppyGroup);
-
-  poppyCase=new THREE.Mesh(new THREE.BoxGeometry(3,5,3),new THREE.MeshStandardMaterial({color:0x9999ff,transparent:true,opacity:0.3}));
-  poppyCase.position.set(0,3,-5);
-  poppyCase.userData.type="poppy_case";
-  poppyGroup.add(poppyCase);
-}
-
-// ===== COLLISION RESOLUTION =====
-function resolveCollisions(nextPos,radius=0.6){
-  for(const box of collisionBoxes){
-    const expanded=box.clone();
-    expanded.min.x-=radius;
-    expanded.max.x+=radius;
-    expanded.min.z-=radius;
-    expanded.max.z+=radius;
-    expanded.min.y=-Infinity;
-    expanded.max.y=Infinity;
-    if(expanded.containsPoint(nextPos)){
-      return false;
-    }
-  }
-  return true;
-}
-
-// ===== STATE MACHINE =====
-function setState(newState){
-  state=newState;
-  switch(newState){
-    case "lobby":
-      player.position.set(0,2,10);
-      hud.textContent="LOBBY\nFind the green tape.";
-      info.textContent="Hands: 0 | Fuses: 0 | Toy: no";
-      stopAllMusic();
-      fadeIn(hallMusic,.7);
-      break;
-    case "chase":
-      hud.textContent="VENT CHASE\nRun. If Huggy catches you, you die.";
-      stopAllMusic();
-      fadeIn(chaseMusic,.9);
-      huggyChaseActive=true;
-      break;
-    case "catwalks":
-      hud.textContent="CATWALKS\nDrop the crate on Huggy.";
-      stopAllMusic();
-      fadeIn(chaseMusic,.9);
-      break;
-    case "poppy":
-      hud.textContent="POPPY'S ROOM\nOpen the case.";
-      stopAllMusic();
-      fadeIn(protoMusic,.7);
-      break;
-    case "credits":
-      hud.textContent="";
-      info.textContent="";
-      creditsUI.style.display="flex";
-      break;
-  }
-}
-
-// ===== INPUT / INTERACT =====
-function onMouseMove(e){
-  if(document.pointerLockElement!==renderer?.domElement)return;
-  yaw-=e.movementX*0.002;
-  pitch-=e.movementY*0.002;
-  pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
-  player.rotation.y=yaw;
-  camera.rotation.x=pitch;
-}
-
-function tryInteract(){
-  if(state==="dead"||state==="credits")return;
-  const pos=player.position;
-
-  // Lobby tape
-  lobbyGroup?.traverse(o=>{
-    if(o.userData.type==="tape_lobby" && o.position.distanceTo(pos)<2){
-      hud.textContent="LOBBY\nLeith Pierre warns you.\nSecurity is \"watching\".\n(Stub) The next door unlocks.";
-      info.textContent="Hands: 1 | Fuses: 0 | Toy: no";
-      inventory.grabpackHands=1;
-    }
-  });
-
-  // Poppy case
-  if(poppyCase && poppyCase.position.clone().add(poppyGroup.position).distanceTo(pos)<3 && state==="poppy"){
-    creditsUI.style.display="flex";
-    state="credits";
-  }
-}
-
-// ===== MAIN LOOP =====
 function animate(){
   requestAnimationFrame(animate);
-  if(!scene)return;
+  if(!renderer || !scene)return;
   const dt=0.016;
 
-  if(state!=="dead" && state!=="credits"){
-    // movement with collision
+  if(player){
     const forward=new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.y=0;forward.normalize();
@@ -560,54 +424,11 @@ function animate(){
     if(keys["KeyD"])move.add(right);
     if(move.lengthSq()>0)move.normalize();
 
-    const speed=6;
-    const intendedMove=move.clone().multiplyScalar(speed*dt);
-    const nextPos=player.position.clone().add(intendedMove);
-
-    if(resolveCollisions(nextPos,0.6)){
-      player.position.copy(nextPos);
-    }
-
-    velY-=25*dt;
-    if(keys["Space"] && player.position.y<=2.01)velY=10;
-    let nextY=player.position.y+velY*dt;
-    if(nextY<2){nextY=2;velY=0;}
-    player.position.y=nextY;
-
-    // simple flow between states
-    if(state==="lobby"){
-      if(player.position.z<-12){
-        setState("chase"); // direct to chase for now
-      }
-    }else if(state==="chase"){
-      if(player.position.z<-160){
-        setState("catwalks");
-        stopAllMusic();
-        fadeIn(chaseMusic,.9);
-      }
-    }else if(state==="catwalks"){
-      if(player.position.z<-210){
-        setState("poppy");
-      }
-    }
-
-    // Huggy chase – simple
-    if(state==="chase" && huggy && huggyChaseActive){
-      const target=player.position.clone();
-      const pos=huggy.position;
-      const dir=target.sub(pos);dir.y=0;
-      const d=dir.length();
-      if(d>0.01)dir.normalize();
-      huggy.position.addScaledVector(dir,8*dt);
-      if(d<2.5){
-        triggerJumpscareAndDeath();
-      }
-    }
+    player.position.addScaledVector(move,6*dt);
   }
 
   renderer.render(scene,camera);
 }
-
 </script>
 </body>
 </html>
