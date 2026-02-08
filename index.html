@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Movement Test</title>
+<title>Project Playcare - Movement Working</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #overlay {
@@ -34,10 +34,10 @@ display:none;
 <div id="overlay">Click To Enter</div>
 <div id="ui">WASD Move | Mouse Look</div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/PointerLockControls.js"></script>
+<script type="module">
 
-<script>
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
 
 let scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -55,20 +55,22 @@ document.body.appendChild(renderer.domElement);
 
 /* ================= CONTROLS ================= */
 
-let controls = new THREE.PointerLockControls(camera, document.body);
+let controls = new PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-document.getElementById("overlay").addEventListener("click", () => {
+const overlay = document.getElementById("overlay");
+
+overlay.addEventListener("click", () => {
 controls.lock();
 });
 
 controls.addEventListener("lock", () => {
-document.getElementById("overlay").style.display = "none";
+overlay.style.display = "none";
 document.getElementById("ui").style.display = "block";
 });
 
 controls.addEventListener("unlock", () => {
-document.getElementById("overlay").style.display = "flex";
+overlay.style.display = "flex";
 document.getElementById("ui").style.display = "none";
 });
 
@@ -114,7 +116,6 @@ scene.add(door);
 /* ================= MOVEMENT ================= */
 
 let move = {forward:false, back:false, left:false, right:false};
-let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 
 document.addEventListener("keydown", e=>{
@@ -131,7 +132,7 @@ if(e.code==="KeyA") move.left=false;
 if(e.code==="KeyD") move.right=false;
 });
 
-camera.position.y = 5;
+camera.position.set(0,5,20);
 
 function animate(){
 requestAnimationFrame(animate);
@@ -141,10 +142,10 @@ direction.x = Number(move.right) - Number(move.left);
 direction.normalize();
 
 if(move.forward || move.back)
-controls.moveForward(direction.z * 0.2);
+controls.moveForward(direction.z * 0.3);
 
 if(move.left || move.right)
-controls.moveRight(direction.x * 0.2);
+controls.moveRight(direction.x * 0.3);
 
 renderer.render(scene, camera);
 }
