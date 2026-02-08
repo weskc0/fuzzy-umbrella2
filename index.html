@@ -4,48 +4,140 @@
 <meta charset="UTF-8">
 <title>Project Playcare</title>
 <style>
-body{margin:0;overflow:hidden;background:black;font-family:Arial}
-#title,#ending{
-position:absolute;width:100%;height:100%;
-display:flex;flex-direction:column;
-align-items:center;justify-content:center;
-background:black;color:white;z-index:20
+body{
+  margin:0;
+  overflow:hidden;
+  background:black;
+  font-family:Arial, system-ui, sans-serif;
 }
-#title h1{font-size:48px;margin:0}
-button{padding:12px 25px;margin-top:20px;font-size:18px;cursor:pointer}
+#title,#ending{
+  position:absolute;
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:black;
+  color:white;
+  z-index:20;
+}
+#title h1{
+  font-size:52px;
+  margin:0 0 10px 0;
+  letter-spacing:4px;
+}
+#title p{
+  max-width:460px;
+  text-align:center;
+  font-size:14px;
+  opacity:.85;
+  margin:4px 0;
+  white-space:pre-line;
+}
+button{
+  padding:12px 25px;
+  margin-top:18px;
+  font-size:18px;
+  cursor:pointer;
+  background:#ff2222;
+  border:none;
+  border-radius:4px;
+  color:white;
+}
+button:hover{
+  background:#ff4444;
+}
+#ending h1{
+  font-size:40px;
+  letter-spacing:5px;
+}
+#ending p{
+  font-size:14px;
+  opacity:.9;
+}
+
 #healthBox{
-position:absolute;top:20px;left:20px;
-width:220px;height:22px;border:2px solid white;
-display:none
+  position:absolute;
+  top:20px;
+  left:20px;
+  width:220px;
+  height:22px;
+  border:2px solid white;
+  display:none;
+  z-index:5;
 }
 #healthBar{height:100%;width:100%;background:red}
 #crosshair{
-position:absolute;top:50%;left:50%;
-width:6px;height:6px;background:white;
-transform:translate(-50%,-50%);
-display:none
+  position:absolute;
+  top:50%;left:50%;
+  width:6px;height:6px;
+  background:white;
+  transform:translate(-50%,-50%);
+  display:none;
+  z-index:5;
 }
 #flash{
-position:absolute;width:100%;height:100%;
-background:red;opacity:0;pointer-events:none;
-transition:opacity .1s;
+  position:absolute;
+  width:100%;height:100%;
+  background:red;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .1s;
+  z-index:10;
+}
+#hudText{
+  position:absolute;
+  bottom:20px;
+  left:20px;
+  color:white;
+  font-size:14px;
+  text-shadow:0 0 4px #000;
+  z-index:5;
+  white-space:pre-line;
+}
+#infoText{
+  position:absolute;
+  top:20px;
+  right:20px;
+  color:white;
+  font-size:13px;
+  text-align:right;
+  opacity:.8;
+  text-shadow:0 0 4px #000;
+  z-index:5;
 }
 </style>
 </head>
 <body>
 
 <div id="title">
-<h1>PROJECT PLAYCARE</h1>
-<button id="start">START</button>
+  <h1>PROJECT PLAYCARE</h1>
+  <p>
+A Poppy Playtime: Chapter 3–inspired fan scene.
+
+You wake up in a hallway deep in Playcare.
+CatNap will not let you leave.
+
+Controls:
+WASD – move
+SPACE – jump
+E – interact (generator)
+Mouse – look
+  </p>
+  <button id="start">START</button>
 </div>
 
 <div id="ending" style="display:none;">
-<h1>SEE YOU SOON</h1>
+  <h1>SEE YOU SOON</h1>
+  <p>Thanks for playing this Project Playcare prototype.</p>
 </div>
 
 <div id="healthBox"><div id="healthBar"></div></div>
 <div id="crosshair"></div>
 <div id="flash"></div>
+<div id="hudText"></div>
+<div id="infoText"></div>
 
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
 <audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
@@ -55,6 +147,7 @@ transition:opacity .1s;
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
 
+// ===== GLOBALS & STATE =====
 let scene,camera,renderer,player,catnap,generator,arenaDoor,protoDoor
 let state="title"
 let health=100
@@ -64,259 +157,379 @@ let yaw=0,pitch=0
 let velocityY=0
 let bossDoorOpen=false
 let protoTimer=0
+let catnapDead=false
+let generatorPowered=false
+let protoDoorOpen=false
+let catnapDeathTimer=0
 
+// UI refs
 const titleUI=document.getElementById("title")
 const endingUI=document.getElementById("ending")
 const healthBar=document.getElementById("healthBar")
 const healthBox=document.getElementById("healthBox")
 const crosshair=document.getElementById("crosshair")
 const flash=document.getElementById("flash")
+const hudText=document.getElementById("hudText")
+const infoText=document.getElementById("infoText")
 
+// Audio refs
 const titleMusic=document.getElementById("titleMusic")
 const hallMusic=document.getElementById("hallMusic")
 const bossMusic=document.getElementById("bossMusic")
 const protoMusic=document.getElementById("protoMusic")
 
 function fadeIn(a,v=1,d=2000){
-a.volume=0;a.play()
-let step=v/(d/50)
-let i=setInterval(()=>{
-a.volume=Math.min(v,a.volume+step)
-if(a.volume>=v)clearInterval(i)
-},50)
+  a.volume=0
+  a.play().catch(()=>{})
+  let step=v/(d/50)
+  let i=setInterval(()=>{
+    a.volume=Math.min(v,a.volume+step)
+    if(a.volume>=v)clearInterval(i)
+  },50)
 }
 function fadeOut(a,d=2000){
-let step=a.volume/(d/50)
-let i=setInterval(()=>{
-a.volume=Math.max(0,a.volume-step)
-if(a.volume<=0){a.pause();clearInterval(i)}
-},50)
+  let step=a.volume/(d/50 || 1)
+  let i=setInterval(()=>{
+    a.volume=Math.max(0,a.volume-step)
+    if(a.volume<=0){
+      a.pause()
+      clearInterval(i)
+    }
+  },50)
 }
 
-fadeIn(titleMusic)
+// Title music
+fadeIn(titleMusic,.7)
 
 document.getElementById("start").onclick=()=>{
-fadeOut(titleMusic)
-titleUI.style.display="none"
-init()
+  fadeOut(titleMusic)
+  titleUI.style.display="none"
+  init()
 }
 
+// ===== INIT SCENE =====
 function init(){
+  scene=new THREE.Scene()
+  scene.fog=new THREE.Fog(0x220000,10,220)
 
-scene=new THREE.Scene()
-scene.fog=new THREE.Fog(0x220000,10,180)
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,2000)
+  renderer=new THREE.WebGLRenderer({antialias:true})
+  renderer.setSize(innerWidth,innerHeight)
+  document.body.appendChild(renderer.domElement)
 
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,2000)
-renderer=new THREE.WebGLRenderer({antialias:true})
-renderer.setSize(innerWidth,innerHeight)
-document.body.appendChild(renderer.domElement)
-renderer.domElement.requestPointerLock=renderer.domElement.requestPointerLock||renderer.domElement.mozRequestPointerLock
-renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock())
+  renderer.domElement.requestPointerLock=
+    renderer.domElement.requestPointerLock||
+    renderer.domElement.mozRequestPointerLock
 
-scene.add(new THREE.AmbientLight(0xff0000,.3))
-let light=new THREE.PointLight(0xff0000,2,60)
-light.position.set(0,8,0)
-scene.add(light)
+  renderer.domElement.addEventListener("click",
+    ()=>renderer.domElement.requestPointerLock())
 
-const wallMat=new THREE.MeshStandardMaterial({color:0x333333})
-const floorMat=new THREE.MeshStandardMaterial({color:0x222222})
+  // Lighting: red/Playcare vibe
+  scene.add(new THREE.AmbientLight(0xff0000,.3))
+  let light=new THREE.PointLight(0xff4444,2,80)
+  light.position.set(0,8,0)
+  scene.add(light)
 
-function wall(x,y,z,w,h,d){
-let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallMat)
-m.position.set(x,y,z)
-scene.add(m)
+  const wallMat=new THREE.MeshStandardMaterial({color:0x333333})
+  const floorMat=new THREE.MeshStandardMaterial({color:0x222222})
+
+  function wall(x,y,z,w,h,d){
+    let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallMat)
+    m.position.set(x,y,z)
+    scene.add(m)
+    return m
+  }
+  function floor(x,z,w,d){
+    let m=new THREE.Mesh(new THREE.BoxGeometry(w,1,d),floorMat)
+    m.position.set(x,-0.5,z)
+    scene.add(m)
+    return m
+  }
+
+  // ===== HALLWAY =====
+  // Lengthened a bit for buildup
+  floor(0,-70,20,240)
+  wall(-10,5,-70,1,10,240)
+  wall(10,5,-70,1,10,240)
+  wall(0,10,-70,20,1,240)
+
+  // ===== BOSS DOOR (to arena) =====
+  arenaDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
+  arenaDoor.position.set(0,4,-160)
+  scene.add(arenaDoor)
+
+  // ===== ARENA (bigger, square) =====
+  floor(0,-230,80,80)
+  wall(-40,5,-230,1,10,80)
+  wall(40,5,-230,1,10,80)
+  wall(0,10,-230,80,1,80)
+  wall(0,5,-270,80,10,1)
+
+  // ===== GENERATOR (center) =====
+  generator=new THREE.Mesh(
+    new THREE.CylinderGeometry(4,4,8,16),
+    new THREE.MeshStandardMaterial({color:0x00b0ff})
+  )
+  generator.position.set(0,4,-230)
+  generator.userData.generator=true
+  scene.add(generator)
+
+  // ===== BATTERIES (4) =====
+  for(let i=0;i<4;i++){
+    let b=new THREE.Mesh(
+      new THREE.BoxGeometry(2,2,2),
+      new THREE.MeshStandardMaterial({color:0xffff00})
+    )
+    b.position.set(
+      (Math.random()-0.5)*60,
+      1,
+      -230 + (Math.random()-0.5)*60
+    )
+    b.userData.battery=true
+    scene.add(b)
+  }
+
+  // ===== PROTOTYPE ROOM DOOR (locked until CatNap dies) =====
+  protoDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
+  protoDoor.position.set(0,4,-280)
+  scene.add(protoDoor)
+
+  // Prototype room floor & walls (simple)
+  floor(0,-295,40,40)
+  wall(-20,5,-295,1,10,40)
+  wall(20,5,-295,1,10,40)
+  wall(0,10,-315,40,1,40)
+
+  // ===== PROTOTYPE HAND & EYE =====
+  let hand=new THREE.Mesh(
+    new THREE.BoxGeometry(6,2,10),
+    new THREE.MeshStandardMaterial({color:0x555555})
+  )
+  hand.position.set(0,2,-300)
+  scene.add(hand)
+
+  let eye=new THREE.Mesh(
+    new THREE.SphereGeometry(2,16,16),
+    new THREE.MeshBasicMaterial({color:0xffff00})
+  )
+  eye.position.set(0,5,-310)
+  scene.add(eye)
+
+  // ===== PLAYER =====
+  player=new THREE.Object3D()
+  player.position.set(0,2,30)
+  scene.add(player)
+  player.add(camera)
+
+  healthBox.style.display="block"
+  crosshair.style.display="block"
+  state="hall"
+  bossDoorOpen=false
+  catnapDead=false
+  generatorPowered=false
+  protoDoorOpen=false
+  protoTimer=0
+  catnapDeathTimer=0
+  batteries=0
+  health=100
+  healthBar.style.width=health+"%"
+  hudText.textContent="Reach the end of the hallway.\nCatNap is behind you."
+  infoText.textContent="Batteries: 0 / 4"
+
+  fadeIn(hallMusic,.6)
+
+  // ===== CATNAP =====
+  let body=new THREE.Mesh(
+    new THREE.BoxGeometry(4,8,4),
+    new THREE.MeshStandardMaterial({color:0x2a0033})
+  )
+  let head=new THREE.Mesh(
+    new THREE.BoxGeometry(4,4,4),
+    new THREE.MeshStandardMaterial({color:0x2a0033})
+  )
+  head.position.y=6
+  body.add(head)
+  let eyeL=new THREE.Mesh(
+    new THREE.SphereGeometry(.5,8,8),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+  )
+  let eyeR=eyeL.clone()
+  eyeL.position.set(-1,6.5,2.2)
+  eyeR.position.set(1,6.5,2.2)
+  body.add(eyeL);body.add(eyeR)
+  catnap=body
+  catnap.position.set(0,4,80)
+  scene.add(catnap)
+
+  animate()
 }
 
-function floor(x,z,w,d){
-let m=new THREE.Mesh(new THREE.BoxGeometry(w,1,d),floorMat)
-m.position.set(x,-0.5,z)
-scene.add(m)
-}
-
-/* BUILDING HALLWAY */
-floor(0,-60,20,200)
-wall(-10,5,-60,1,10,200)
-wall(10,5,-60,1,10,200)
-wall(0,10,-60,20,1,200)
-
-/* BOSS DOOR */
-arenaDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
-arenaDoor.position.set(0,4,-150)
-scene.add(arenaDoor)
-
-/* ARENA */
-floor(0,-220,60,60)
-wall(-30,5,-220,1,10,60)
-wall(30,5,-220,1,10,60)
-wall(0,10,-220,60,1,60)
-wall(0,5,-250,60,10,1)
-
-/* GENERATOR */
-generator=new THREE.Mesh(new THREE.CylinderGeometry(4,4,8,16),
-new THREE.MeshStandardMaterial({color:0x00ffff}))
-generator.position.set(0,4,-220)
-scene.add(generator)
-
-/* BATTERIES */
-for(let i=0;i<4;i++){
-let b=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),
-new THREE.MeshStandardMaterial({color:0xffff00}))
-b.position.set((Math.random()-0.5)*40,1,-220+(Math.random()-0.5)*40)
-b.userData.battery=true
-scene.add(b)
-}
-
-/* PROTOTYPE ROOM */
-protoDoor=new THREE.Mesh(new THREE.BoxGeometry(8,8,1),wallMat)
-protoDoor.position.set(0,4,-260)
-scene.add(protoDoor)
-
-/* PROTOTYPE HAND */
-let hand=new THREE.Mesh(new THREE.BoxGeometry(6,2,8),
-new THREE.MeshStandardMaterial({color:0x555555}))
-hand.position.set(0,2,-280)
-scene.add(hand)
-
-/* PROTOTYPE EYE */
-let eye=new THREE.Mesh(new THREE.SphereGeometry(2,16,16),
-new THREE.MeshBasicMaterial({color:0xffff00}))
-eye.position.set(0,4,-295)
-scene.add(eye)
-
-/* PLAYER */
-player=new THREE.Object3D()
-player.position.set(0,2,20)
-scene.add(player)
-player.add(camera)
-
-healthBox.style.display="block"
-crosshair.style.display="block"
-
-fadeIn(hallMusic,.6)
-state="hall"
-
-/* CATNAP */
-let body=new THREE.Mesh(new THREE.BoxGeometry(4,8,4),
-new THREE.MeshStandardMaterial({color:0x2a0033}))
-let head=new THREE.Mesh(new THREE.BoxGeometry(4,4,4),
-new THREE.MeshStandardMaterial({color:0x2a0033}))
-head.position.y=6
-body.add(head)
-let eyeL=new THREE.Mesh(new THREE.SphereGeometry(.5,8,8),
-new THREE.MeshBasicMaterial({color:0xffffff}))
-let eyeR=eyeL.clone()
-eyeL.position.set(-1,6.5,2.2)
-eyeR.position.set(1,6.5,2.2)
-body.add(eyeL);body.add(eyeR)
-catnap=body
-catnap.position.set(0,4,40)
-scene.add(catnap)
-
-animate()
-}
-
-/* CONTROLS */
+/* ===== CONTROLS ===== */
 document.addEventListener("mousemove",e=>{
-if(document.pointerLockElement===renderer.domElement){
-yaw-=e.movementX*.002
-pitch-=e.movementY*.002
-pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch))
-player.rotation.y=yaw
-camera.rotation.x=pitch
-}})
+  if(document.pointerLockElement===renderer?.domElement){
+    yaw-=e.movementX*.002
+    pitch-=e.movementY*.002
+    pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch))
+    if(player){
+      player.rotation.y=yaw
+      camera.rotation.x=pitch
+    }
+  }
+})
 document.addEventListener("keydown",e=>keys[e.code]=true)
 document.addEventListener("keyup",e=>keys[e.code]=false)
 
+/* ===== MAIN LOOP ===== */
 function animate(){
-requestAnimationFrame(animate)
-if(!scene)return
-let delta=.016
+  requestAnimationFrame(animate)
+  if(!scene)return
+  const delta=.016
 
-/* movement */
-let forward=new THREE.Vector3()
-camera.getWorldDirection(forward);forward.y=0;forward.normalize()
-let right=new THREE.Vector3()
-right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize()
-let move=new THREE.Vector3()
-if(keys["KeyW"])move.add(forward)
-if(keys["KeyS"])move.sub(forward)
-if(keys["KeyA"])move.sub(right)
-if(keys["KeyD"])move.add(right)
-move.normalize()
-player.position.addScaledVector(move,8*delta)
+  // Movement
+  if(state!=="ending"){
+    let forward=new THREE.Vector3()
+    camera.getWorldDirection(forward)
+    forward.y=0;forward.normalize()
+    let right=new THREE.Vector3()
+    right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize()
+    let move=new THREE.Vector3()
+    if(keys["KeyW"])move.add(forward)
+    if(keys["KeyS"])move.sub(forward)
+    if(keys["KeyA"])move.sub(right)
+    if(keys["KeyD"])move.add(right)
+    if(move.lengthSq()>0)move.normalize()
+    player.position.addScaledVector(move,9*delta)
 
-/* jump */
-velocityY-=30*delta
-if(keys["Space"]&&player.position.y<=2)velocityY=12
-player.position.y+=velocityY*delta
-if(player.position.y<2){player.position.y=2;velocityY=0}
+    // Constrain hall/arena roughly by walls
+    if(player.position.x<-9.5)player.position.x=-9.5
+    if(player.position.x>9.5)player.position.x=9.5
 
-/* catnap chase */
-if(state!=="ending"){
-let dir=new THREE.Vector3().subVectors(player.position,catnap.position).normalize()
-catnap.position.addScaledVector(dir,5*delta)
-catnap.lookAt(player.position)
-if(catnap.position.distanceTo(player.position)<3){
-health-=.6
-healthBar.style.width=health+"%"
-flash.style.opacity=.4
-setTimeout(()=>flash.style.opacity=0,100)
-}
-}
+    // Jump & gravity
+    velocityY-=30*delta
+    if(keys["Space"]&&player.position.y<=2.01)velocityY=12
+    player.position.y+=velocityY*delta
+    if(player.position.y<2){player.position.y=2;velocityY=0}
+  }
 
-/* door opening */
-if(player.position.z<-145 && !bossDoorOpen){
-arenaDoor.position.y+=10*delta
-if(arenaDoor.position.y>20){
-bossDoorOpen=true
-fadeOut(hallMusic)
-fadeIn(bossMusic,.8)
-state="boss"
-}
-}
+  // CatNap chase & damage
+  if(state!=="ending" && !catnapDead){
+    let dir=new THREE.Vector3().subVectors(player.position,catnap.position)
+    dir.y=0
+    let dist=dir.length()
+    if(dist>0.01)dir.normalize()
+    // Slower in hall, faster in arena
+    let speed=(state==="hall")?5:7
+    catnap.position.addScaledVector(dir,speed*delta)
+    catnap.lookAt(player.position)
 
-/* boss mechanics */
-if(state==="boss"){
-scene.children.forEach(o=>{
-if(o.userData.battery && o.position.distanceTo(player.position)<3){
-scene.remove(o);batteries++
-}
-})
-if(batteries>0 && player.position.distanceTo(generator.position)<6){
-if(keys["KeyE"]){
-batteries--
-generator.material.color.set(0x00ff00)
-}
-}
-if(batteries===0 && generator.material.color.getHex()===0x00ff00){
-catnap.visible=false
-bossMusic.pause()
-protoDoor.position.y+=20*delta
-if(protoDoor.position.y>20){
-state="proto"
-fadeIn(protoMusic,.6)
-}
-}
-}
+    if(dist<3){
+      // Only tick health when very close
+      health-=0.9
+      if(health<0)health=0
+      healthBar.style.width=health+"%"
+      flash.style.opacity=.4
+      setTimeout(()=>flash.style.opacity=0,80)
+    }
+  }
 
-/* prototype */
-if(state==="proto"){
-protoTimer+=delta
-if(protoTimer>10){
-endingUI.style.display="flex"
-state="ending"
-}
-}
+  // Hall → Boss door opening
+  if(state==="hall" && player.position.z<-150 && !bossDoorOpen){
+    arenaDoor.position.y+=10*delta
+    if(arenaDoor.position.y>20){
+      bossDoorOpen=true
+      fadeOut(hallMusic,1500)
+      fadeIn(bossMusic,.8,1500)
+      state="boss"
+      hudText.textContent="Boss arena.\nCollect all batteries, then interact (E) with the generator."
+    }
+  }
 
-if(health<=0)location.reload()
+  // Boss logic
+  if(state==="boss"){
+    // Keep player roughly inside arena bounds
+    if(player.position.x<-39)player.position.x=-39
+    if(player.position.x>39)player.position.x=39
+    if(player.position.z<-270)player.position.z=-270
+    if(player.position.z>-190)player.position.z=-190
 
-renderer.render(scene,camera)
+    // Collect batteries
+    scene.traverse(o=>{
+      if(o.userData && o.userData.battery){
+        let d=o.position.distanceTo(player.position)
+        if(d<3){
+          o.userData.battery=false
+          scene.remove(o)
+          batteries++
+          infoText.textContent=`Batteries: ${batteries} / 4`
+        }
+      }
+    })
+
+    // Power generator (only once, when you have all batteries)
+    if(batteries>=4 &&
+       player.position.distanceTo(generator.position)<7 &&
+       keys["KeyE"] &&
+       !generatorPowered){
+      generatorPowered=true
+      generator.material.color.set(0x00ff00)
+      hudText.textContent="Generator powered.\nThe red cat goes quiet…"
+      // Kill CatNap with a small delay
+      catnapDeathTimer=0
+    }
+
+    // Handle CatNap death after generator power
+    if(generatorPowered && !catnapDead){
+      catnapDeathTimer+=delta
+      if(catnapDeathTimer>1.2){
+        catnapDead=true
+        catnap.visible=false
+        fadeOut(bossMusic,1500)
+        hudText.textContent="It’s finally quiet.\nSomething opens deeper in Playcare…"
+      }
+    }
+
+    // After CatNap is dead, open Prototype door (slowly)
+    if(catnapDead && !protoDoorOpen){
+      protoDoor.position.y+=15*delta
+      if(protoDoor.position.y>20){
+        protoDoorOpen=true
+      }
+    }
+
+    // If player goes through the opened door, start proto scene
+    if(protoDoorOpen && player.position.z<-275){
+      state="proto"
+      fadeIn(protoMusic,.7,1500)
+      hudText.textContent="A mechanical hand waits ahead.\nYou are being watched."
+    }
+  }
+
+  // Prototype / ending
+  if(state==="proto"){
+    protoTimer+=delta
+    // Gentle “credits delay”
+    if(protoTimer>9){
+      endingUI.style.display="flex"
+      state="ending"
+      hudText.textContent=""
+      infoText.textContent=""
+    }
+  }
+
+  // Death reset
+  if(health<=0 && state!=="ending"){
+    // Hard reset the page – simple but effective for now
+    location.reload()
+  }
+
+  renderer.render(scene,camera)
 }
 
 window.addEventListener("resize",()=>{
-camera.aspect=innerWidth/innerHeight
-camera.updateProjectionMatrix()
-renderer.setSize(innerWidth,innerHeight)
+  if(!camera || !renderer)return
+  camera.aspect=innerWidth/innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth,innerHeight)
 })
 
 </script>
