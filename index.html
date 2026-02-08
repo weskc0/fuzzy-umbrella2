@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Playcare - Movement Working</title>
+<title>Project Playcare - Stable FPS</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #overlay {
@@ -34,59 +34,41 @@ display:none;
 <div id="overlay">Click To Enter</div>
 <div id="ui">WASD Move | Mouse Look</div>
 
-<script type="module">
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
-import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
+<script>
 
-let scene = new THREE.Scene();
+/* ================= BASIC THREE SETUP ================= */
+
+const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-let camera = new THREE.PerspectiveCamera(
+const camera = new THREE.PerspectiveCamera(
 75,
 window.innerWidth/window.innerHeight,
 0.1,
 1000
 );
 
-let renderer = new THREE.WebGLRenderer({antialias:true});
+camera.position.set(0,5,20);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= CONTROLS ================= */
-
-let controls = new PointerLockControls(camera, document.body);
-scene.add(controls.getObject());
-
-const overlay = document.getElementById("overlay");
-
-overlay.addEventListener("click", () => {
-controls.lock();
-});
-
-controls.addEventListener("lock", () => {
-overlay.style.display = "none";
-document.getElementById("ui").style.display = "block";
-});
-
-controls.addEventListener("unlock", () => {
-overlay.style.display = "flex";
-document.getElementById("ui").style.display = "none";
-});
-
 /* ================= LIGHTING ================= */
 
-let ambient = new THREE.AmbientLight(0xffffff, 0.4);
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambient);
 
-let light = new THREE.DirectionalLight(0xffffff, 0.8);
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
 light.position.set(10,20,10);
 scene.add(light);
 
 /* ================= ROOM ================= */
 
 function wall(x,y,z,w,h,d,color=0x333333){
-let mesh = new THREE.Mesh(
+const mesh = new THREE.Mesh(
 new THREE.BoxGeometry(w,h,d),
 new THREE.MeshStandardMaterial({color})
 );
@@ -106,16 +88,53 @@ wall(-size/2,25,0,2,50,size);
 wall(size/2,25,0,2,50,size);
 
 // door
-let door = new THREE.Mesh(
+const door = new THREE.Mesh(
 new THREE.BoxGeometry(10,20,2),
 new THREE.MeshStandardMaterial({color:0x550000})
 );
 door.position.set(0,10,-40);
 scene.add(door);
 
+/* ================= POINTER LOCK (MANUAL) ================= */
+
+const overlay = document.getElementById("overlay");
+
+overlay.addEventListener("click", () => {
+document.body.requestPointerLock();
+});
+
+document.addEventListener("pointerlockchange", () => {
+if (document.pointerLockElement === document.body) {
+overlay.style.display = "none";
+document.getElementById("ui").style.display = "block";
+} else {
+overlay.style.display = "flex";
+document.getElementById("ui").style.display = "none";
+}
+});
+
+/* ================= MOUSE LOOK ================= */
+
+let yaw = 0;
+let pitch = 0;
+
+document.addEventListener("mousemove", (event) => {
+if (document.pointerLockElement === document.body) {
+yaw -= event.movementX * 0.002;
+pitch -= event.movementY * 0.002;
+
+pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+
+camera.rotation.order = "YXZ";
+camera.rotation.y = yaw;
+camera.rotation.x = pitch;
+}
+});
+
 /* ================= MOVEMENT ================= */
 
 let move = {forward:false, back:false, left:false, right:false};
+let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 
 document.addEventListener("keydown", e=>{
@@ -132,20 +151,31 @@ if(e.code==="KeyA") move.left=false;
 if(e.code==="KeyD") move.right=false;
 });
 
-camera.position.set(0,5,20);
-
 function animate(){
 requestAnimationFrame(animate);
 
-direction.z = Number(move.forward) - Number(move.back);
-direction.x = Number(move.right) - Number(move.left);
+direction.set(0,0,0);
+
+if(move.forward) direction.z -= 1;
+if(move.back) direction.z += 1;
+if(move.left) direction.x -= 1;
+if(move.right) direction.x += 1;
+
 direction.normalize();
 
-if(move.forward || move.back)
-controls.moveForward(direction.z * 0.3);
+const speed = 0.3;
 
-if(move.left || move.right)
-controls.moveRight(direction.x * 0.3);
+// move relative to camera direction
+const forward = new THREE.Vector3();
+camera.getWorldDirection(forward);
+forward.y = 0;
+forward.normalize();
+
+const right = new THREE.Vector3();
+right.crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
+
+camera.position.add(forward.multiplyScalar(direction.z * speed));
+camera.position.add(right.multiplyScalar(direction.x * speed));
 
 renderer.render(scene, camera);
 }
