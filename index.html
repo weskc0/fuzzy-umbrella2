@@ -125,7 +125,7 @@ body{
 #settingsClose:hover{background:#666;}
 
 /* HUD */
-#hud,#info{
+#hud,#info,#prompt{
   position:absolute;
   left:20px;
   bottom:20px;
@@ -143,6 +143,9 @@ body{
   top:20px;
   font-size:13px;
   text-align:right;
+}
+#prompt{
+  bottom:50px;
 }
 #crosshair{
   position:absolute;
@@ -225,12 +228,13 @@ body{
 <!-- HUD -->
 <div id="hud"></div>
 <div id="info"></div>
+<div id="prompt"></div>
 <div id="crosshair"></div>
 
 <!-- GAME OVER / CREDITS / JUMPSCARE -->
 <div id="gameOver">
   <h1>YOU DIED</h1>
-  <p>Huggy found you in the vents.\n\nPress REFRESH to try again from the factory entrance.</p>
+  <p>Huggy found you in the vents.\n\nRefresh the page to try again from the factory entrance.</p>
 </div>
 <div id="credits">
   <h1>CHAPTER 1 COMPLETE</h1>
@@ -270,6 +274,7 @@ const jumpscareSound=document.getElementById("jumpscareSound");
 
 const hud=document.getElementById("hud");
 const info=document.getElementById("info");
+const prompt=document.getElementById("prompt");
 const crosshair=document.getElementById("crosshair");
 const gameOverUI=document.getElementById("gameOver");
 const creditsUI=document.getElementById("credits");
@@ -277,7 +282,7 @@ const jumpscare=document.getElementById("jumpscare");
 
 const options={
   masterVolume:0.75,
-  mouseSensitivity:0.08,
+  mouseSensitivity:0.003, // base, tuned down
   flashlightEnabled:true
 };
 
@@ -313,7 +318,8 @@ volumeSlider.addEventListener("input",()=>{
   applyMasterVolume();
 });
 sensSlider.addEventListener("input",()=>{
-  options.mouseSensitivity=Number(sensSlider.value)/1000;
+  // 20–200 → roughly 0.001–0.01
+  options.mouseSensitivity=Number(sensSlider.value)/20000;
 });
 flashToggle.addEventListener("change",()=>{
   options.flashlightEnabled=flashToggle.checked;
@@ -339,24 +345,13 @@ let scene,camera,renderer,player,gameFlashlight;
 let yaw=0,pitch=0;
 const keys={};
 const collisionBoxes=[];
-let state="lobby"; // lobby, security, power, fuses, makeFriend, chase, catwalks, poppy, dead, credits
+let state="lobby";
+let fovTarget=75;
 
-// objects by state
-let huggyStatue=null;
-let greenTape=null;
-let securityDoor=null;
-let grabpack=null;
-let powerPad=null;
-let factoryDoor=null;
-let fuseMeshes=[];
-let fusePanel=null;
-let toyNodes=[];
-let toyGate=null;
-let catBee=null;
-let huggyChase=null;
-let crate=null;
-let poppyDoor=null;
-let poppyCase=null;
+// objects
+let huggyStatue,greenTape,securityDoor,grabpack,powerPad,factoryDoor;
+let fuseMeshes=[],fusePanel,toyNodes=[],toyGate,catBee,huggyChase;
+let crate,poppyDoor,poppyCase;
 
 // inventory
 const inventory={
@@ -381,10 +376,11 @@ function triggerJumpscareAndDeath(){
     crosshair.style.display="none";
     hud.textContent="";
     info.textContent="";
+    prompt.textContent="";
   },600);
 }
 
-// ===== THREE INITIALISE =====
+// ===== THREE INIT =====
 function startGame(){
   const canvas=document.getElementById("gameCanvas");
   renderer=new THREE.WebGLRenderer({canvas,antialias:true});
@@ -394,18 +390,19 @@ function startGame(){
 
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0x060814);
-  scene.fog=new THREE.Fog(0x070a16,40,200); // normal, slightly moody [web:43]
+  scene.fog=new THREE.Fog(0x101320,70,260);
 
   camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
+  fovTarget=75;
 
   player=new THREE.Object3D();
   player.position.set(0,2,18);
   scene.add(player);
   player.add(camera);
 
-  const ambient=new THREE.AmbientLight(0x8888aa,0.7);
+  const ambient=new THREE.AmbientLight(0x9999bb,0.9);
   scene.add(ambient);
-  const lobbyLight=new THREE.PointLight(0xffffff,1.2,60);
+  const lobbyLight=new THREE.PointLight(0xffffff,1.6,80);
   lobbyLight.position.set(0,7,0);
   lobbyLight.castShadow=true;
   scene.add(lobbyLight);
@@ -420,18 +417,39 @@ function startGame(){
 
   hud.style.display="block";
   info.style.display="block";
+  prompt.style.display="block";
   crosshair.style.display="block";
   hud.textContent="LOBBY\nFind the green tape.";
-  info.textContent="Hands: 0 | Fuses: 0 | Toy: no";
+  info.textContent="Area: Lobby\nHands: 0 | Fuses: 0 | Toy: no";
+  prompt.textContent="Use WASD + Mouse.\nPress E near objects.";
 
   renderer.domElement.requestPointerLock=
     renderer.domElement.requestPointerLock||
     renderer.domElement.mozRequestPointerLock;
   renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
 
-  document.addEventListener("mousemove",onMouseMove);
-  document.addEventListener("keydown",onKeyDown);
-  document.addEventListener("keyup",e=>{keys[e.code]=false;});
+  document.addEventListener("mousemove",(e)=>{
+    if(!renderer || document.pointerLockElement!==renderer.domElement)return;
+    const sens=options.mouseSensitivity;
+    yaw-=e.movementX*sens;
+    pitch-=e.movementY*sens;
+    const maxPitch=Math.PI/2-0.01;
+    if(pitch>maxPitch)pitch=maxPitch;
+    if(pitch<-maxPitch)pitch=-maxPitch;
+    player.rotation.y=yaw;
+    camera.rotation.x=pitch;
+  });
+
+  document.addEventListener("keydown",(e)=>{
+    keys[e.code]=true;
+    if(e.code==="KeyF"){
+      options.flashlightEnabled=!options.flashlightEnabled;
+      gameFlashlight.visible=options.flashlightEnabled;
+      flashToggle.checked=options.flashlightEnabled;
+    }
+    if(e.code==="KeyE")tryInteract();
+  });
+  document.addEventListener("keyup",(e)=>{keys[e.code]=false;});
 
   window.addEventListener("resize",()=>{
     camera.aspect=window.innerWidth/window.innerHeight;
@@ -446,37 +464,38 @@ function startGame(){
   animate();
 }
 
-function onMouseMove(e){
-  if(document.pointerLockElement!==renderer?.domElement)return;
-  yaw-=e.movementX*options.mouseSensitivity;
-  pitch-=e.movementY*options.mouseSensitivity;
-  pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
-  player.rotation.y=yaw;
-  camera.rotation.x=pitch;
+// ===== TEXTURES (optional) =====
+const loader=new THREE.TextureLoader();
+function loadTex(path,repeatX=1,repeatY=1){
+  const tex=loader.load(path,()=>{});
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(repeatX,repeatY);
+  return tex;
 }
+// If you add files, uncomment these and point to real paths
+let floorTex=null, wallTex=null, huggyTex=null;
+try{
+  floorTex=loadTex('textures/floor_concrete.png',4,4);
+  wallTex=loadTex('textures/wall_tiles.png',3,2);
+  huggyTex=loadTex('textures/huggy_fur.png',1,1);
+}catch(e){/* fallback to colors */}
 
-function onKeyDown(e){
-  keys[e.code]=true;
-  if(e.code==="KeyF"){
-    options.flashlightEnabled=!options.flashlightEnabled;
-    gameFlashlight.visible=options.flashlightEnabled;
-    flashToggle.checked=options.flashlightEnabled;
-  }
-  if(e.code==="KeyE"){
-    tryInteract();
-  }
-}
-
-// ===== GEOMETRY + COLLISION =====
-const wallMat=new THREE.MeshStandardMaterial({color:0x262c3e,roughness:0.7});
-const floorMat=new THREE.MeshStandardMaterial({color:0x1b1f2d,roughness:0.85});
-const trimMat=new THREE.MeshStandardMaterial({color:0x424a66,roughness:0.6});
-const hudMat=new THREE.MeshStandardMaterial({color:0x004477});
-
+// ===== GEOMETRY / COLLISION =====
+const collisionBoxes=[];
 function addCollisionFrom(mesh){
   const box=new THREE.Box3().setFromObject(mesh);
   collisionBoxes.push(box);
 }
+
+let floorMat,wallMat,trimMat,huggyMat,toyNodeMat;
+floorMat=new THREE.MeshStandardMaterial({color:0x1b1f2d,roughness:0.85});
+if(floorTex)floorMat.map=floorTex;
+wallMat=new THREE.MeshStandardMaterial({color:0x262c3e,roughness:0.7});
+if(wallTex)wallMat.map=wallTex;
+trimMat=new THREE.MeshStandardMaterial({color:0x424a66,roughness:0.6});
+huggyMat=new THREE.MeshStandardMaterial({color:0x004477});
+if(huggyTex)huggyMat.map=huggyTex;
+toyNodeMat=new THREE.MeshStandardMaterial({color:0xffaa00});
 
 function makeRoom(width,depth,height=8){
   const g=new THREE.Group();
@@ -489,6 +508,7 @@ function makeRoom(width,depth,height=8){
   const wallF=new THREE.Mesh(new THREE.BoxGeometry(width,height,0.4),wallMat);
   wallF.position.set(0,height/2,-depth/2);
   g.add(wallF); addCollisionFrom(wallF);
+
   const wallB=wallF.clone();
   wallB.position.z=depth/2;
   g.add(wallB); addCollisionFrom(wallB);
@@ -512,26 +532,25 @@ function buildFactory(){
   lobby.position.set(0,0,0);
   scene.add(lobby);
 
-  huggyStatue=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,5,8),hudMat);
+  huggyStatue=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,5,8),huggyMat);
   huggyStatue.position.set(0,2.8,-4);
   huggyStatue.castShadow=true;
   lobby.add(huggyStatue);
-  const hHead=new THREE.Mesh(new THREE.SphereGeometry(1.4,16,16),hudMat);
+  const hHead=new THREE.Mesh(new THREE.SphereGeometry(1.4,16,16),huggyMat);
   hHead.position.set(0,5.6,-4);
   huggyStatue.add(hHead);
 
   const desk=new THREE.Mesh(new THREE.BoxGeometry(8,1.5,2),trimMat);
   desk.position.set(0,1,6);
   desk.castShadow=true;
-  lobby.add(desk);
-  addCollisionFrom(desk);
+  lobby.add(desk); addCollisionFrom(desk);
 
   greenTape=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.2),new THREE.MeshStandardMaterial({color:0x00ff00}));
   greenTape.position.set(-5,1.2,2);
   greenTape.userData.type="tape";
   lobby.add(greenTape);
 
-  // Security Office to right
+  // Security office
   const secRoom=makeRoom(10,10,6);
   secRoom.position.set(15,0,5);
   scene.add(secRoom);
@@ -539,41 +558,37 @@ function buildFactory(){
   securityDoor=new THREE.Mesh(new THREE.BoxGeometry(3,6,0.4),trimMat);
   securityDoor.position.set(10,3,5);
   securityDoor.userData.locked=true;
-  scene.add(securityDoor);
-  addCollisionFrom(securityDoor);
+  scene.add(securityDoor); addCollisionFrom(securityDoor);
 
   grabpack=new THREE.Mesh(new THREE.BoxGeometry(1.5,2,0.5),new THREE.MeshStandardMaterial({color:0x00b0ff}));
   grabpack.position.set(15,1.2,5);
   grabpack.userData.type="grabpack";
   secRoom.add(grabpack);
 
-  // Power Room left
+  // Power room
   const powerRoom=makeRoom(12,12,6);
   powerRoom.position.set(-15,0,-5);
   scene.add(powerRoom);
 
   const powerDoor=new THREE.Mesh(new THREE.BoxGeometry(3,6,0.4),trimMat);
   powerDoor.position.set(-10,3,-5);
-  scene.add(powerDoor);
-  addCollisionFrom(powerDoor);
+  scene.add(powerDoor); addCollisionFrom(powerDoor);
 
   powerPad=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,0.3,16),new THREE.MeshStandardMaterial({color:0xffaa00}));
   powerPad.position.set(-15,0.2,-5);
   powerPad.userData.type="powerPad";
   powerRoom.add(powerPad);
 
-  // Factory door (to fuses) front wall
+  // Factory door
   factoryDoor=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
   factoryDoor.position.set(0,3,-15);
   factoryDoor.userData.locked=true;
-  scene.add(factoryDoor);
-  addCollisionFrom(factoryDoor);
+  scene.add(factoryDoor); addCollisionFrom(factoryDoor);
 
-  // Fuse room corridor & room
+  // Fuse room
   const fuseCorr=new THREE.Mesh(new THREE.BoxGeometry(6,4,20),wallMat);
   fuseCorr.position.set(0,2,-30);
-  scene.add(fuseCorr);
-  addCollisionFrom(fuseCorr);
+  scene.add(fuseCorr); addCollisionFrom(fuseCorr);
 
   const fuseRoom=makeRoom(14,14,6);
   fuseRoom.position.set(0,0,-45);
@@ -587,17 +602,16 @@ function buildFactory(){
   fuseMeshes=[];
   for(let i=0;i<4;i++){
     const f=new THREE.Mesh(new THREE.BoxGeometry(0.5,1,0.5),new THREE.MeshStandardMaterial({color:0xffff00}));
-    f.position.set((i-1.5)*2,1, (i%2===0? -3:3));
+    f.position.set((i-1.5)*2,1,(i%2===0?-3:3));
     f.userData.type="fuse";
     fuseRoom.add(f);
     fuseMeshes.push(f);
   }
 
-  // Corridor to Make-A-Friend
-  const mfCorr=new THREE.Mesh(new THREE.BoxGeometry(6,4,20),wallMat);
-  mfCorr.position.set(0,2,-65);
-  scene.add(mfCorr);
-  addCollisionFrom(mfCorr);
+  // Make-A-Friend
+  const corrMF=new THREE.Mesh(new THREE.BoxGeometry(6,4,20),wallMat);
+  corrMF.position.set(0,2,-65);
+  scene.add(corrMF); addCollisionFrom(corrMF);
 
   const makeFriend=makeRoom(24,24,8);
   makeFriend.position.set(0,0,-85);
@@ -605,7 +619,7 @@ function buildFactory(){
 
   toyNodes=[];
   for(let i=0;i<3;i++){
-    const n=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffaa00}));
+    const n=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),toyNodeMat);
     n.position.set((i-1)*6,3,-8);
     n.userData.type="toyNode";
     makeFriend.add(n);
@@ -615,8 +629,7 @@ function buildFactory(){
   toyGate=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
   toyGate.position.set(0,3,10);
   toyGate.userData.locked=true;
-  makeFriend.add(toyGate);
-  addCollisionFrom(toyGate);
+  makeFriend.add(toyGate); addCollisionFrom(toyGate);
 
   const belt=new THREE.Mesh(new THREE.BoxGeometry(10,0.3,2),new THREE.MeshStandardMaterial({color:0x333333}));
   belt.position.set(0,0.3,0);
@@ -628,30 +641,28 @@ function buildFactory(){
   catBee.userData.type="toy";
   makeFriend.add(catBee);
 
-  // Vent corridor for chase
+  // Vent chase
   const vent=makeRoom(6,40,4);
   vent.position.set(0,0,-115);
   scene.add(vent);
 
-  huggyChase=new THREE.Mesh(new THREE.BoxGeometry(2,5,2),hudMat);
+  huggyChase=new THREE.Mesh(new THREE.BoxGeometry(2,5,2),huggyMat);
   huggyChase.position.set(0,2,-95);
   vent.add(huggyChase);
 
-  // Catwalks & crate
+  // Catwalks
   const catwalkFloor=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,30),new THREE.MeshStandardMaterial({color:0x444444}));
   catwalkFloor.position.set(0,5,-140);
-  scene.add(catwalkFloor);
-  addCollisionFrom(catwalkFloor);
+  scene.add(catwalkFloor); addCollisionFrom(catwalkFloor);
 
   crate=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),new THREE.MeshStandardMaterial({color:0x666666}));
   crate.position.set(0,10,-145);
   scene.add(crate);
 
-  // Poppy door & room
+  // Poppy door + room
   poppyDoor=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
   poppyDoor.position.set(0,3,-155);
-  scene.add(poppyDoor);
-  addCollisionFrom(poppyDoor);
+  scene.add(poppyDoor); addCollisionFrom(poppyDoor);
 
   const poppyRoom=makeRoom(12,12,6);
   poppyRoom.position.set(0,0,-175);
@@ -663,6 +674,7 @@ function buildFactory(){
   poppyRoom.add(poppyCase);
 }
 
+// Collision with horizontal slide
 function canMoveTo(nextPos,radius=0.7){
   for(const box of collisionBoxes){
     const expanded=box.clone();
@@ -683,67 +695,88 @@ function canMoveTo(nextPos,radius=0.7){
 function tryInteract(){
   if(state==="dead"||state==="credits")return;
   const pos=player.position.clone();
+  prompt.textContent="";
 
   if(state==="lobby"){
-    if(greenTape && greenTape.position.distanceTo(pos)<2){
-      hud.textContent="LOBBY\nLeith Pierre warns: \"Please obey Playtime Co. policies.\"";
+    if(greenTape && greenTape.visible && greenTape.position.distanceTo(pos)<2){
       inventory.haveTape=true;
       greenTape.visible=false;
+      hud.textContent="LOBBY\nLeith Pierre: \"Please obey Playtime Co. policies.\"\nSecurity Office unlocked.";
       securityDoor.userData.locked=false;
-      info.textContent="Hands: 0 | Fuses: 0 | Toy: no\nSecurity Office unlocked.";
+      info.textContent="Area: Lobby\nHands: 0 | Fuses: 0 | Toy: no\nSecurity: unlocked.";
+      return;
     }
-    if(!securityDoor.userData.locked && pos.distanceTo(securityDoor.position)<3){
-      hud.textContent="SECURITY OFFICE\nGrabPack is on the desk.";
-      state="security";
-    }
-  }else if(state==="security"){
-    if(grabpack && grabpack.position.clone().add(new THREE.Vector3(15,0,5).sub(new THREE.Vector3(15,0,5))).distanceTo(pos)<3){
+  }
+
+  if(!securityDoor.userData.locked && pos.distanceTo(securityDoor.position)<3 && state==="lobby"){
+    state="security";
+    hud.textContent="SECURITY OFFICE\nGrab the blue GrabPack hand.";
+    info.textContent="Area: Security Office\nHands: 0 | Fuses: 0 | Toy: no";
+    return;
+  }
+
+  if(state==="security"){
+    if(grabpack && grabpack.visible && grabpack.position.clone().add(new THREE.Vector3(15,0,5).sub(new THREE.Vector3(15,0,5))).distanceTo(pos)<3){
       inventory.grabHands=1;
       grabpack.visible=false;
-      hud.textContent="LOBBY\nYou have the blue GrabPack hand.\nLeft hall: power room.";
+      hud.textContent="LOBBY\nYou have the blue GrabPack hand.\nLeft hall leads to the Power Room.";
       state="lobby";
-      info.textContent="Hands: 1 | Fuses: 0 | Toy: no";
+      info.textContent="Area: Lobby\nHands: 1 | Fuses: 0 | Toy: no";
+      return;
     }
-  }else if(state==="power"){
+  }
+
+  if(state==="power"){
     if(powerPad && powerPad.position.clone().add(new THREE.Vector3(-15,0,-5).sub(new THREE.Vector3(-15,0,-5))).distanceTo(pos)<3){
-      hud.textContent="POWER ROOM\nPower restored.\nReturn to lobby.";
+      hud.textContent="POWER ROOM\nPower restored.\nReturn to the lobby.";
       factoryDoor.userData.locked=false;
       state="lobby";
+      info.textContent="Area: Lobby\nHands: 1 | Fuses: 0 | Toy: no\nPower: on.";
+      return;
     }
-  }else if(state==="fuses"){
+  }
+
+  if(state==="fuses"){
     fuseMeshes.forEach(f=>{
       if(f.visible && f.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(pos)<2){
         f.visible=false;
         inventory.fuses++;
         hud.textContent=`FUSE ROOM\nFuses collected: ${inventory.fuses}/4`;
-        info.textContent=`Hands: 1 | Fuses: ${inventory.fuses} | Toy: no`;
+        info.textContent=`Area: Fuse Room\nHands: 1 | Fuses: ${inventory.fuses} | Toy: no`;
       }
     });
     if(inventory.fuses>=4 && fusePanel.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(pos)<3){
       inventory.grabHands=2;
       hud.textContent="FUSE ROOM\nPower restored. You now have both GrabPack hands.\nHead deeper into the factory.";
-      info.textContent=`Hands: 2 | Fuses: 4 | Toy: no`;
       state="factoryHalls";
+      info.textContent="Area: Factory Halls\nHands: 2 | Fuses: 4 | Toy: no";
+      return;
     }
-  }else if(state==="makeFriend"){
+  }
+
+  if(state==="makeFriend"){
+    let activatedBefore=toyNodes.filter(n=>n.userData.active).length;
     toyNodes.forEach(n=>{
-      if(n.userData.active!==true && n.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(pos)<3){
+      if(!n.userData.active && n.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(pos)<3){
         n.material.color.set(0x00ff00);
         n.userData.active=true;
       }
     });
-    if(toyNodes.every(n=>n.userData.active===true) && !inventory.toyCrafted){
+    if(!inventory.toyCrafted && toyNodes.every(n=>n.userData.active===true)){
       inventory.toyCrafted=true;
       catBee.visible=true;
       hud.textContent="MAKE-A-FRIEND\nToy is ready. Pick it up.";
-      info.textContent=`Hands: 2 | Fuses: 4 | Toy: yes`;
+      info.textContent="Area: Make-A-Friend\nHands: 2 | Fuses: 4 | Toy: yes";
     }
     if(inventory.toyCrafted && catBee.visible && catBee.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(pos)<3){
       catBee.visible=false;
       toyGate.userData.locked=false;
       hud.textContent="MAKE-A-FRIEND\nGate open. Head into the dark hallway.";
     }
-  }else if(state==="poppy"){
+    return;
+  }
+
+  if(state==="poppy"){
     if(poppyCase && poppyCase.position.clone().add(new THREE.Vector3(0,0,-175)).distanceTo(pos)<3){
       state="credits";
       stopAllMusic();
@@ -751,6 +784,8 @@ function tryInteract(){
       creditsUI.style.display="flex";
       hud.textContent="";
       info.textContent="";
+      prompt.textContent="";
+      return;
     }
   }
 }
@@ -760,6 +795,10 @@ function animate(){
   requestAnimationFrame(animate);
   if(!renderer||!scene)return;
   const dt=0.016;
+
+  // Camera FOV lerp
+  camera.fov += (fovTarget - camera.fov) * 0.1;
+  camera.updateProjectionMatrix();
 
   if(state!=="dead" && state!=="credits"){
     const forward=new THREE.Vector3();
@@ -777,21 +816,35 @@ function animate(){
 
     const speed=6;
     const step=move.clone().multiplyScalar(speed*dt);
-    const nextPos=player.position.clone().add(step);
-    if(canMoveTo(nextPos,0.7)){
-      player.position.copy(nextPos);
-    }
-    player.position.y=2; // floor lock
 
-    // rough state changes based on position
+    // slide collision: try X, then Z
+    const nextX=player.position.clone().add(new THREE.Vector3(step.x,0,0));
+    if(canMoveTo(nextX,0.7))player.position.x=nextX.x;
+    const nextZ=player.position.clone().add(new THREE.Vector3(0,0,step.z));
+    if(canMoveTo(nextZ,0.7))player.position.z=nextZ.z;
+    player.position.y=2;
+
     const z=player.position.z;
+    // Area labels
+    if(z>-10) info.textContent=`Area: Lobby\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else if(z>-35) info.textContent=`Area: Power / Halls\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else if(z>-60) info.textContent=`Area: Fuse Room\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else if(z>-100) info.textContent=`Area: Make-A-Friend\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else if(z>-130) info.textContent=`Area: Vents\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else if(z>-160) info.textContent=`Area: Catwalks\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+    else info.textContent=`Area: Poppy Room\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
+
+    // high-level state changes
     if(state==="lobby"){
-      if(z<-10 && !factoryDoor.userData.locked){
-        state="fuses";
-        hud.textContent="FUSE ROOM\nCollect all four fuses.";
-      }else if(z<-10 && factoryDoor.userData.locked){
-        state="power";
-        hud.textContent="POWER ROOM\nUse the power pad.";
+      if(z<-10){
+        // if power is off, go power; if on, go fuses
+        if(factoryDoor.userData.locked){
+          state="power";
+          hud.textContent="POWER ROOM\nUse the power pad to restore electricity.";
+        }else{
+          state="fuses";
+          hud.textContent="FUSE ROOM\nCollect all four fuses.";
+        }
       }
     }else if(state==="fuses" && z<-60){
       state="makeFriend";
@@ -811,12 +864,10 @@ function animate(){
       if(poppyDoor.position.y<0){
         state="poppy";
         hud.textContent="POPPY ROOM\nOpen the case.";
-        stopAllMusic();
-        fadeIn(protoMusic,options.masterVolume,1500);
       }
     }
 
-    // simple chase behaviour
+    // Huggy chase + FOV pulse
     if(state==="chase" && huggyChase){
       const target=player.position.clone();
       const pos=huggyChase.position;
@@ -824,12 +875,14 @@ function animate(){
       const d=dir.length();
       if(d>0.01)dir.normalize();
       huggyChase.position.addScaledVector(dir,8*dt);
-      if(d<2.5){
-        triggerJumpscareAndDeath();
-      }
+
+      if(d<6) fovTarget=80; else fovTarget=75;
+      if(d<2.5){ triggerJumpscareAndDeath(); }
+    }else{
+      fovTarget=75;
     }
 
-    // crate kill stub: if player steps near crate, we "drop" it
+    // Crate drop stub
     if(state==="catwalks" && crate){
       if(player.position.distanceTo(crate.position)<5){
         crate.position.y-=20*dt;
@@ -837,6 +890,38 @@ function animate(){
           crate.position.y=3;
         }
       }
+    }
+
+    // Prompts
+    prompt.textContent="";
+    if(state==="lobby" && greenTape && greenTape.visible && greenTape.position.distanceTo(player.position)<2){
+      prompt.textContent="Press E to pick up the tape.";
+    }else if(state==="lobby" && !securityDoor.userData.locked && player.position.distanceTo(securityDoor.position)<3){
+      prompt.textContent="Press E to enter the Security Office.";
+    }else if(state==="security" && grabpack && grabpack.visible && grabpack.position.clone().add(new THREE.Vector3(15,0,5).sub(new THREE.Vector3(15,0,5))).distanceTo(player.position)<3){
+      prompt.textContent="Press E to pick up the GrabPack.";
+    }else if(state==="power" && powerPad && powerPad.position.clone().add(new THREE.Vector3(-15,0,-5).sub(new THREE.Vector3(-15,0,-5))).distanceTo(player.position)<3){
+      prompt.textContent="Press E to use the power pad.";
+    }else if(state==="fuses"){
+      fuseMeshes.forEach(f=>{
+        if(f.visible && f.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(player.position)<2){
+          prompt.textContent="Press E to pick up fuse.";
+        }
+      });
+      if(inventory.fuses>=4 && fusePanel.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(player.position)<3){
+        prompt.textContent="Press E to place fuses.";
+      }
+    }else if(state==="makeFriend"){
+      toyNodes.forEach(n=>{
+        if(!n.userData.active && n.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(player.position)<3){
+          prompt.textContent="Press E to power node.";
+        }
+      });
+      if(inventory.toyCrafted && catBee.visible && catBee.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(player.position)<3){
+        prompt.textContent="Press E to take toy.";
+      }
+    }else if(state==="poppy" && poppyCase && poppyCase.position.clone().add(new THREE.Vector3(0,0,-175)).distanceTo(player.position)<3){
+      prompt.textContent="Press E to open Poppy's case.";
     }
   }
 
