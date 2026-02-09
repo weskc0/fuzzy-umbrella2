@@ -2,14 +2,22 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PROJECT: PLAYCARE – Chapter 1</title>
+<title>PROJECT: PLAYCARE – NIGHT SHIFT</title>
 <style>
 body{
   margin:0;
   overflow:hidden;
-  background:#02030a;
+  background:black;
   font-family:Arial, system-ui, sans-serif;
   color:white;
+  user-select:none;
+}
+
+/* CANVAS BACKDROP */
+#gameCanvas{
+  position:fixed;
+  inset:0;
+  background:#05050a;
 }
 
 /* TITLE SCREEN */
@@ -20,17 +28,16 @@ body{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  background:linear-gradient(160deg, #050814 0%, #02030a 40%, #050814 100%);
+  background:radial-gradient(circle at 50% 20%, #161626 0, #050511 45%, #000 100%);
   z-index:30;
 }
 #titleBackdrop{
   position:absolute;
   inset:0;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255,0,0,0.08) 0, transparent 45%),
-    radial-gradient(circle at 80% 70%, rgba(0,120,255,0.12) 0, transparent 50%);
+    radial-gradient(circle at 10% 10%, rgba(255,0,0,0.12) 0, transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(0,140,255,0.2) 0, transparent 55%);
   pointer-events:none;
-  opacity:0.9;
 }
 #titleContent{
   position:relative;
@@ -53,8 +60,8 @@ body{
 #titleTagline{
   margin-top:6px;
   font-size:13px;
-  opacity:.78;
-  animation:tagPulse 2.8s ease-in-out infinite;
+  opacity:.8;
+  animation:tagPulse 3s ease-in-out infinite;
 }
 @keyframes tagPulse{
   0%,100%{opacity:.45;}
@@ -85,7 +92,7 @@ body{
   box-shadow:0 0 22px rgba(255,60,60,0.6);
 }
 
-/* SETTINGS */
+/* SETTINGS (simple for now) */
 #settingsPanel{
   position:absolute;
   top:50%;left:50%;
@@ -125,7 +132,7 @@ body{
 #settingsClose:hover{background:#666;}
 
 /* HUD */
-#hud,#info,#prompt{
+#hud{
   position:absolute;
   left:20px;
   bottom:20px;
@@ -137,58 +144,139 @@ body{
   display:none;
 }
 #info{
-  left:auto;
-  right:20px;
-  bottom:auto;
-  top:20px;
-  font-size:13px;
-  text-align:right;
-}
-#prompt{
-  bottom:50px;
-}
-#crosshair{
   position:absolute;
-  top:50%;left:50%;
-  width:6px;height:6px;
-  background:white;
-  transform:translate(-50%,-50%);
-  display:none;
+  right:20px;
+  bottom:20px;
+  color:white;
+  font-size:13px;
+  text-shadow:0 0 4px #000;
   z-index:10;
+  text-align:right;
+  display:none;
+}
+#timeDisplay{
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-size:16px;
+  text-shadow:0 0 4px #000;
+  z-index:10;
+  display:none;
+}
+#powerBar{
+  position:absolute;
+  left:20px;
+  top:20px;
+  width:140px;
+  height:18px;
+  border:1px solid #fff;
+  z-index:10;
+  display:none;
+}
+#powerFill{
+  height:100%;
+  width:100%;
+  background:#46ff46;
 }
 
-/* GAME OVER / CREDITS / JUMPSCARE */
-#gameOver,#credits,#jumpscare{
+/* OFFICE UI clickable regions */
+.uiButton{
+  position:absolute;
+  border:2px solid #666;
+  background:rgba(20,20,30,0.8);
+  color:white;
+  font-size:11px;
+  padding:4px 6px;
+  cursor:pointer;
+  text-align:center;
+  user-select:none;
+}
+.uiButton.on{
+  background:#ff4444;
+}
+#leftDoorBtn{left:40px;bottom:80px;}
+#leftLightBtn{left:40px;bottom:50px;}
+#rightDoorBtn{right:40px;bottom:80px;}
+#rightLightBtn{right:40px;bottom:50px;}
+#camBtn{left:50%;bottom:30px;transform:translateX(-50%);}
+
+/* CAMERA MONITOR OVERLAY */
+#camOverlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  display:none;
+  z-index:20;
+}
+#camView{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:480px;
+  height:270px;
+  transform:translate(-50%,-50%);
+  background:#050509;
+  border:2px solid #666;
+  box-shadow:0 0 12px rgba(0,0,0,0.8);
+}
+#camLabel{
+  position:absolute;
+  top:-22px;
+  left:0;
+  font-size:12px;
+  color:#ccc;
+}
+.camMap{
+  position:absolute;
+  bottom:-80px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:6px;
+}
+.camMap button{
+  padding:3px 8px;
+  font-size:11px;
+  background:#222;
+  border:1px solid #555;
+  color:white;
+  cursor:pointer;
+}
+.camMap button.active{
+  background:#66ccff;
+  border-color:#aaf;
+}
+
+/* Jumpscare & 6 AM */
+#jumpscare{
   position:absolute;
   inset:0;
   display:none;
-  flex-direction:column;
   align-items:center;
   justify-content:center;
   background:black;
   color:white;
   z-index:40;
-}
-#gameOver h1,#credits h1{
-  margin-bottom:10px;
+  font-size:32px;
   letter-spacing:4px;
 }
-#jumpscare img{
-  max-width:100%;
-  max-height:100%;
-  object-fit:contain;
-}
-
-/* Canvas */
-#gameCanvas{
-  position:fixed;
+#sixAM{
+  position:absolute;
   inset:0;
-  display:block;
-  z-index:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:black;
+  color:white;
+  z-index:40;
+  font-size:32px;
+  letter-spacing:4px;
 }
 </style>
 </head>
 <body>
+
+<canvas id="gameCanvas"></canvas>
 
 <!-- TITLE SCREEN -->
 <div id="titleScreen">
@@ -198,9 +286,9 @@ body{
       <span>PROJECT:</span>
       <span>PLAYCARE</span>
     </h1>
-    <div id="titleTagline">“Everyone disappeared. They’re still here.”</div>
+    <div id="titleTagline">Night Shift – “Everyone disappeared. They’re still here.”</div>
     <div id="titleButtons">
-      <button class="titleBtn" id="playBtn">Play</button>
+      <button class="titleBtn" id="playBtn">New Game</button>
       <button class="titleBtn" id="settingsBtn">Settings</button>
       <button class="titleBtn" id="quitBtn">Quit</button>
     </div>
@@ -228,678 +316,466 @@ body{
 <!-- HUD -->
 <div id="hud"></div>
 <div id="info"></div>
-<div id="prompt"></div>
-<div id="crosshair"></div>
+<div id="timeDisplay"></div>
+<div id="powerBar"><div id="powerFill"></div></div>
 
-<!-- GAME OVER / CREDITS / JUMPSCARE -->
-<div id="gameOver">
-  <h1>YOU DIED</h1>
-  <p>Huggy found you in the vents.\n\nRefresh the page to try again from the factory entrance.</p>
+<!-- Office buttons -->
+<div id="leftDoorBtn" class="uiButton">LEFT DOOR</div>
+<div id="leftLightBtn" class="uiButton">LEFT LIGHT</div>
+<div id="rightDoorBtn" class="uiButton">RIGHT DOOR</div>
+<div id="rightLightBtn" class="uiButton">RIGHT LIGHT</div>
+<div id="camBtn" class="uiButton">CAM</div>
+
+<!-- Camera overlay -->
+<div id="camOverlay">
+  <div id="camView">
+    <div id="camLabel">CAM 1 – STAGE</div>
+    <!-- Placeholder: we just draw into canvas for now -->
+  </div>
+  <div class="camMap">
+    <button data-cam="1" class="camBtn">CAM 1</button>
+    <button data-cam="2" class="camBtn">CAM 2</button>
+    <button data-cam="3" class="camBtn">CAM 3</button>
+    <button data-cam="4" class="camBtn">CAM 4</button>
+  </div>
 </div>
-<div id="credits">
-  <h1>CHAPTER 1 COMPLETE</h1>
-  <p>You opened Poppy’s case.\nShe’s finally awake.\n\nThanks for playing this web fan demo.</p>
-</div>
-<div id="jumpscare">
-  <!-- <img src="huggy_jumpscare.png" alt="Huggy"> -->
-</div>
+
+<!-- Jumpscare / 6AM -->
+<div id="jumpscare">HUGGY GOT YOU</div>
+<div id="sixAM">6 AM</div>
 
 <!-- AUDIO -->
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
-<audio id="hallMusic" src="Bgm-1.mp3" loop></audio>
+<audio id="officeMusic" src="Bgm-1.mp3" loop></audio>
 <audio id="chaseMusic" src="chase music.mp3" loop></audio>
 <audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
 <audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
-<canvas id="gameCanvas"></canvas>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
-// ===== TITLE + SETTINGS =====
-const titleScreen=document.getElementById("titleScreen");
-const playBtn=document.getElementById("playBtn");
-const settingsBtn=document.getElementById("settingsBtn");
-const quitBtn=document.getElementById("quitBtn");
-const settingsPanel=document.getElementById("settingsPanel");
-const settingsClose=document.getElementById("settingsClose");
-const volumeSlider=document.getElementById("volumeSlider");
-const sensSlider=document.getElementById("sensSlider");
-const flashToggle=document.getElementById("flashToggle");
+// ===== SIMPLE 2D OFFICE USING CANVAS (no pointer lock) =====
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-const titleMusic=document.getElementById("titleMusic");
-const hallMusic=document.getElementById("hallMusic");
-const chaseMusic=document.getElementById("chaseMusic");
-const protoMusic=document.getElementById("protoMusic");
-const jumpscareSound=document.getElementById("jumpscareSound");
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-const hud=document.getElementById("hud");
-const info=document.getElementById("info");
-const prompt=document.getElementById("prompt");
-const crosshair=document.getElementById("crosshair");
-const gameOverUI=document.getElementById("gameOver");
-const creditsUI=document.getElementById("credits");
-const jumpscare=document.getElementById("jumpscare");
+// ===== UI refs =====
+const titleScreen = document.getElementById('titleScreen');
+const playBtn = document.getElementById('playBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const quitBtn = document.getElementById('quitBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const settingsClose = document.getElementById('settingsClose');
+const volumeSlider = document.getElementById('volumeSlider');
+const sensSlider = document.getElementById('sensSlider');
+const flashToggle = document.getElementById('flashToggle');
 
-const options={
-  masterVolume:0.75,
-  mouseSensitivity:0.0025, // fixed sane default
-  flashlightEnabled:true
+const titleMusic = document.getElementById('titleMusic');
+const officeMusic = document.getElementById('officeMusic');
+const chaseMusic = document.getElementById('chaseMusic');
+const protoMusic = document.getElementById('protoMusic');
+const jumpscareSound = document.getElementById('jumpscareSound');
+
+const hud = document.getElementById('hud');
+const info = document.getElementById('info');
+const timeDisplay = document.getElementById('timeDisplay');
+const powerBar = document.getElementById('powerBar');
+const powerFill = document.getElementById('powerFill');
+
+const leftDoorBtn = document.getElementById('leftDoorBtn');
+const leftLightBtn = document.getElementById('leftLightBtn');
+const rightDoorBtn = document.getElementById('rightDoorBtn');
+const rightLightBtn = document.getElementById('rightLightBtn');
+const camBtn = document.getElementById('camBtn');
+
+const camOverlay = document.getElementById('camOverlay');
+const camLabel = document.getElementById('camLabel');
+const camButtons = Array.from(document.querySelectorAll('.camBtn'));
+
+const jumpscareDiv = document.getElementById('jumpscare');
+const sixAMDiv = document.getElementById('sixAM');
+
+// ===== OPTIONS =====
+const options = {
+  masterVolume: 0.75,
+  mouseSensitivity: 0.0025,
+  flashlightEnabled: true
 };
 
 function fadeIn(audio,target=0.75,duration=1500){
-  audio.volume=0;
+  audio.volume = 0;
   audio.play().catch(()=>{});
-  const step=target/(duration/50);
-  const id=setInterval(()=>{
-    audio.volume=Math.min(target,audio.volume+step);
-    if(audio.volume>=target)clearInterval(id);
+  const step = target/(duration/50);
+  const id = setInterval(()=>{
+    audio.volume = Math.min(target, audio.volume+step);
+    if(audio.volume>=target) clearInterval(id);
   },50);
 }
 function fadeOut(audio,duration=1500){
-  const step=(audio.volume||0)/(duration/50||1);
-  const id=setInterval(()=>{
-    audio.volume=Math.max(0,audio.volume-step);
+  const step = (audio.volume||0)/(duration/50||1);
+  const id = setInterval(()=>{
+    audio.volume = Math.max(0, audio.volume-step);
     if(audio.volume<=0){audio.pause();clearInterval(id);}
   },50);
 }
 function stopAllMusic(){
-  [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
+  [titleMusic,officeMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
 function applyMasterVolume(){
-  [titleMusic,hallMusic,chaseMusic,protoMusic].forEach(a=>{a.volume=options.masterVolume;});
+  [titleMusic,officeMusic,chaseMusic,protoMusic,jumpscareSound].forEach(a=>{a.volume=options.masterVolume;});
 }
 
+// init title music
 applyMasterVolume();
-fadeIn(titleMusic,options.masterVolume);
+fadeIn(titleMusic, options.masterVolume);
 
-volumeSlider.addEventListener("input",()=>{
-  options.masterVolume=Number(volumeSlider.value)/100;
+volumeSlider.addEventListener('input',()=>{
+  options.masterVolume = Number(volumeSlider.value)/100;
   applyMasterVolume();
 });
-
-// FIX: better slider → sensitivity mapping
-sensSlider.addEventListener("input",()=>{
-  const v = Number(sensSlider.value); // 20–200
-  // Map to roughly 0.001–0.01
-  options.mouseSensitivity = 0.001 + (v - 20) * (0.01 - 0.001) / (200 - 20);
+sensSlider.addEventListener('input',()=>{
+  const v = Number(sensSlider.value);
+  options.mouseSensitivity = 0.001 + (v-20)*(0.01-0.001)/(200-20);
+});
+flashToggle.addEventListener('change',()=>{
+  options.flashlightEnabled = flashToggle.checked;
 });
 
-flashToggle.addEventListener("change",()=>{
-  options.flashlightEnabled=flashToggle.checked;
-  if(window.gameFlashlight)gameFlashlight.visible=options.flashlightEnabled;
-});
-
-settingsBtn.onclick=()=>settingsPanel.style.display="block";
-settingsClose.onclick=()=>settingsPanel.style.display="none";
-quitBtn.onclick=()=>{
-  titleScreen.style.display="none";
+// settings UI
+settingsBtn.onclick = ()=> settingsPanel.style.display='block';
+settingsClose.onclick = ()=> settingsPanel.style.display='none';
+quitBtn.onclick = ()=>{
+  titleScreen.style.display='none';
   fadeOut(titleMusic,800);
 };
 
-playBtn.onclick=()=>{
-  titleScreen.style.display="none";
-  settingsPanel.style.display="none";
+// ===== GAME STATE (FNaw style) =====
+const game = {
+  running: false,
+  night: 1,
+  hour: 12,
+  minute: 0,
+  timeScale: 10, // 1 in-game minute = 10 real seconds
+  lastMinuteTick: 0,
+  power: 100,
+  powerDrainBase: 0.03, // % per second
+  powerDrainDoors: 0.2,
+  powerDrainLights: 0.1,
+
+  officeView: 'center', // 'left','center','right'
+  camsOpen: false,
+  currentCam: 1,
+  leftDoorClosed: false,
+  rightDoorClosed: false,
+  leftLightOn: false,
+  rightLightOn: false,
+
+  anim: {
+    huggy: { state: 'stage', lastMove: 0, moveDelay: 6 }, // states: stage→hall→door
+  },
+  state: 'office', // 'office','jumpscare','win'
+  startTime: 0
+};
+
+// Night rules for Huggy (Bonnie)
+const huggyPath = ['stage','hall1','door'];
+
+// ===== INPUT: Office buttons =====
+leftDoorBtn.onclick = ()=>{
+  if(!game.running || game.state!=='office') return;
+  game.leftDoorClosed = !game.leftDoorClosed;
+  leftDoorBtn.classList.toggle('on', game.leftDoorClosed);
+};
+leftLightBtn.onclick = ()=>{
+  if(!game.running || game.state!=='office') return;
+  game.leftLightOn = !game.leftLightOn;
+  leftLightBtn.classList.toggle('on', game.leftLightOn);
+};
+rightDoorBtn.onclick = ()=>{
+  if(!game.running || game.state!=='office') return;
+  game.rightDoorClosed = !game.rightDoorClosed;
+  rightDoorBtn.classList.toggle('on', game.rightDoorClosed);
+};
+rightLightBtn.onclick = ()=>{
+  if(!game.running || game.state!=='office') return;
+  game.rightLightOn = !game.rightLightOn;
+  rightLightBtn.classList.toggle('on', game.rightLightOn);
+};
+camBtn.onclick = ()=>{
+  if(!game.running || game.state!=='office') return;
+  game.camsOpen = !game.camsOpen;
+  camOverlay.style.display = game.camsOpen ? 'block':'none';
+};
+
+camButtons.forEach(btn=>{
+  btn.onclick = ()=>{
+    if(!game.camsOpen || game.state!=='office') return;
+    const camId = Number(btn.dataset.cam);
+    game.currentCam = camId;
+    camButtons.forEach(b=>b.classList.toggle('active', Number(b.dataset.cam)===camId));
+    updateCamLabel();
+  };
+});
+
+function updateCamLabel(){
+  let name = '';
+  switch(game.currentCam){
+    case 1: name='CAM 1 – STAGE';break;
+    case 2: name='CAM 2 – LEFT HALL';break;
+    case 3: name='CAM 3 – RIGHT HALL';break;
+    case 4: name='CAM 4 – CATNAP COVE (stub)';break;
+  }
+  camLabel.textContent = name;
+}
+
+// ===== TITLE START =====
+playBtn.onclick = ()=>{
+  titleScreen.style.display='none';
+  settingsPanel.style.display='none';
   fadeOut(titleMusic,800);
-  startGame();
+  startNight(1);
 };
 
-// ===== GAME STATE =====
-let scene,camera,renderer,player,gameFlashlight;
-let yaw=0,pitch=0;
-const keys={};
-const collisionBoxes=[];
-let state="lobby";
-let fovTarget=75;
+// ===== NIGHT SETUP =====
+function startNight(n){
+  game.running = true;
+  game.night = n;
+  game.hour = 12;
+  game.minute = 0;
+  game.lastMinuteTick = performance.now();
+  game.power = 100;
+  game.state = 'office';
+  game.officeView = 'center';
+  game.camsOpen = false;
+  game.currentCam = 1;
+  game.leftDoorClosed = false;
+  game.rightDoorClosed = false;
+  game.leftLightOn = false;
+  game.rightLightOn = false;
 
-// objects
-let huggyStatue,greenTape,securityDoor,grabpack,powerPad,factoryDoor;
-let fuseMeshes=[],fusePanel,toyNodes=[],toyGate,catBee,huggyChase;
-let crate,poppyDoor,poppyCase;
+  // Huggy reset
+  game.anim.huggy.state = 'stage';
+  game.anim.huggy.lastMove = performance.now();
+  game.anim.huggy.moveDelay = 6; // seconds
 
-// inventory
-const inventory={
-  haveTape:false,
-  grabHands:0,
-  fuses:0,
-  toyCrafted:false
-};
+  hud.style.display='block';
+  info.style.display='block';
+  timeDisplay.style.display='block';
+  powerBar.style.display='block';
+  camOverlay.style.display='none';
+  camButtons.forEach(b=>b.classList.toggle('active', Number(b.dataset.cam)===1));
+  updateCamLabel();
+  jumpscareDiv.style.display='none';
+  sixAMDiv.style.display='none';
 
-function triggerJumpscareAndDeath(){
-  if(state==="dead"||state==="credits")return;
-  state="dead";
   stopAllMusic();
-  jumpscare.style.display="flex";
+  applyMasterVolume();
+  fadeIn(officeMusic, options.masterVolume);
+
+  requestAnimationFrame(loop);
+}
+
+// ===== MAIN LOOP =====
+function loop(now){
+  if(!game.running) return;
+
+  const dt = 0.016; // rough fixed timestep
+
+  updateTime(now);
+  updatePower(dt);
+  updateHuggy(now);
+  checkWinLose(now);
+  drawOffice();
+  drawCamView();
+
+  requestAnimationFrame(loop);
+}
+
+// ===== TIME & POWER =====
+function updateTime(now){
+  const elapsed = (now - game.lastMinuteTick)/1000;
+  if(elapsed >= game.timeScale){
+    game.lastMinuteTick = now;
+    game.minute += 1;
+    if(game.minute>=60){
+      game.minute=0;
+      game.hour++;
+      if(game.hour===13) game.hour=1; // just in case
+    }
+  }
+  timeDisplay.textContent = `${game.hour} AM`;
+}
+
+function updatePower(dt){
+  if(game.state!=='office') return;
+  let drain = game.powerDrainBase;
+  if(game.leftDoorClosed) drain += game.powerDrainDoors;
+  if(game.rightDoorClosed) drain += game.powerDrainDoors;
+  if(game.leftLightOn) drain += game.powerDrainLights;
+  if(game.rightLightOn) drain += game.powerDrainLights;
+  if(game.camsOpen) drain += 0.05;
+
+  game.power -= drain*dt*60; // scale up a bit
+  if(game.power<0) game.power=0;
+  powerFill.style.width = `${game.power}%`;
+  if(game.power<30) powerFill.style.background='#ffcc33';
+  if(game.power<15) powerFill.style.background='#ff4444';
+}
+
+// ===== HUGGY AI (Night 1) =====
+function updateHuggy(now){
+  if(game.night!==1 || game.state!=='office') return;
+  const h = game.anim.huggy;
+  const t = now/1000;
+  if(t - h.lastMove < h.moveDelay) return;
+
+  // If cams open and you are looking at Huggy's current cam, slow him down
+  const watchingHuggy = game.camsOpen && (
+    (h.state==='stage' && game.currentCam===1) ||
+    (h.state==='hall1' && game.currentCam===2) ||
+    (h.state==='door' && game.currentCam===2)
+  );
+  if(watchingHuggy){
+    h.moveDelay = 8; // slower if watched
+  }else{
+    h.moveDelay = 5; // faster if ignored
+  }
+
+  // Move along path
+  const idx = huggyPath.indexOf(h.state);
+  if(idx < huggyPath.length-1){
+    h.state = huggyPath[idx+1];
+    h.lastMove = t;
+  }else{
+    // at door: check door status
+    if(!game.leftDoorClosed){
+      // Jumpscare
+      triggerHuggyJumpscare();
+    }else{
+      // door protected you; reset him to earlier state
+      h.state = 'hall1';
+      h.lastMove = t;
+    }
+  }
+}
+
+// ===== JUMPSCARE & WIN =====
+function triggerHuggyJumpscare(){
+  if(game.state!=='office') return;
+  game.state = 'jumpscare';
+  stopAllMusic();
+  applyMasterVolume();
   if(jumpscareSound){
     jumpscareSound.currentTime=0;
     jumpscareSound.play().catch(()=>{});
   }
+  jumpscareDiv.style.display='flex';
   setTimeout(()=>{
-    jumpscare.style.display="none";
-    gameOverUI.style.display="flex";
-    crosshair.style.display="none";
-    hud.textContent="";
-    info.textContent="";
-    prompt.textContent="";
-  },600);
+    game.running=false;
+  },2500);
 }
 
-// ===== THREE INIT =====
-function startGame(){
-  const canvas=document.getElementById("gameCanvas");
-  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio||1);
-  renderer.shadowMap.enabled=true;
-
-  scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x060814);
-  scene.fog=new THREE.Fog(0x101320,70,260);
-
-  camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
-  fovTarget=75;
-
-  player=new THREE.Object3D();
-  player.position.set(0,2,18);
-  scene.add(player);
-  player.add(camera);
-
-  const ambient=new THREE.AmbientLight(0x9999bb,0.9);
-  scene.add(ambient);
-  const lobbyLight=new THREE.PointLight(0xffffff,1.6,80);
-  lobbyLight.position.set(0,7,0);
-  lobbyLight.castShadow=true;
-  scene.add(lobbyLight);
-
-  gameFlashlight=new THREE.SpotLight(0xffffff,2.0,45,Math.PI/8,0.5);
-  gameFlashlight.castShadow=true;
-  camera.add(gameFlashlight);
-  scene.add(camera);
-  gameFlashlight.visible=options.flashlightEnabled;
-
-  buildFactory();
-
-  hud.style.display="block";
-  info.style.display="block";
-  prompt.style.display="block";
-  crosshair.style.display="block";
-  hud.textContent="LOBBY\nFind the green tape.";
-  info.textContent="Area: Lobby\nHands: 0 | Fuses: 0 | Toy: no";
-  prompt.textContent="Use WASD + Mouse.\nPress E near objects.";
-
-  renderer.domElement.requestPointerLock=
-    renderer.domElement.requestPointerLock||
-    renderer.domElement.mozRequestPointerLock;
-  renderer.domElement.addEventListener("click",()=>renderer.domElement.requestPointerLock());
-
-  // FIXED CAMERA HANDLER
-  document.addEventListener("mousemove",(e)=>{
-    if(!renderer || document.pointerLockElement!==renderer.domElement)return;
-    const sens=options.mouseSensitivity;
-
-    yaw -= e.movementX * sens;    // left/right
-    pitch -= e.movementY * sens;  // up/down
-
-    const maxPitch = Math.PI/2 - 0.01;
-    if(pitch > maxPitch) pitch = maxPitch;
-    if(pitch < -maxPitch) pitch = -maxPitch;
-
-    player.rotation.y = yaw;
-    camera.rotation.x = pitch;
-  });
-
-  document.addEventListener("keydown",(e)=>{
-    keys[e.code]=true;
-    if(e.code==="KeyF"){
-      options.flashlightEnabled=!options.flashlightEnabled;
-      gameFlashlight.visible=options.flashlightEnabled;
-      flashToggle.checked=options.flashlightEnabled;
-    }
-    if(e.code==="KeyE")tryInteract();
-  });
-  document.addEventListener("keyup",(e)=>{keys[e.code]=false;});
-
-  window.addEventListener("resize",()=>{
-    camera.aspect=window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth,window.innerHeight);
-  });
-
-  stopAllMusic();
-  applyMasterVolume();
-  fadeIn(hallMusic,options.masterVolume);
-
-  animate();
-}
-
-// ===== SIMPLE MATERIALS / GEOMETRY =====
-const wallMat=new THREE.MeshStandardMaterial({color:0x262c3e,roughness:0.7});
-const floorMat=new THREE.MeshStandardMaterial({color:0x1b1f2d,roughness:0.85});
-const trimMat=new THREE.MeshStandardMaterial({color:0x424a66,roughness:0.6});
-const huggyMat=new THREE.MeshStandardMaterial({color:0x004477});
-const toyNodeMat=new THREE.MeshStandardMaterial({color:0xffaa00});
-
-function addCollisionFrom(mesh){
-  const box=new THREE.Box3().setFromObject(mesh);
-  collisionBoxes.push(box);
-}
-
-function makeRoom(width,depth,height=8){
-  const g=new THREE.Group();
-  const floor=new THREE.Mesh(new THREE.BoxGeometry(width,0.3,depth),floorMat);
-  floor.position.set(0,0,0);
-  floor.receiveShadow=true;
-  g.add(floor); addCollisionFrom(floor);
-
-  const wallF=new THREE.Mesh(new THREE.BoxGeometry(width,height,0.4),wallMat);
-  wallF.position.set(0,height/2,-depth/2);
-  g.add(wallF); addCollisionFrom(wallF);
-
-  const wallB=wallF.clone();
-  wallB.position.z=depth/2;
-  g.add(wallB); addCollisionFrom(wallB);
-
-  const wallL=new THREE.Mesh(new THREE.BoxGeometry(0.4,height,depth),wallMat);
-  wallL.position.set(-width/2,height/2,0);
-  g.add(wallL); addCollisionFrom(wallL);
-
-  const wallR=wallL.clone();
-  wallR.position.x=width/2;
-  g.add(wallR); addCollisionFrom(wallR);
-
-  const trim=new THREE.Mesh(new THREE.BoxGeometry(width+0.5,0.3,depth+0.5),trimMat);
-  trim.position.set(0,height,0);
-  g.add(trim);
-
-  return g;
-}
-
-function buildFactory(){
-  // Lobby
-  const lobby=makeRoom(30,30,8);
-  lobby.position.set(0,0,0);
-  scene.add(lobby);
-
-  huggyStatue=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,5,8),huggyMat);
-  huggyStatue.position.set(0,2.8,-4);
-  huggyStatue.castShadow=true;
-  lobby.add(huggyStatue);
-  const hHead=new THREE.Mesh(new THREE.SphereGeometry(1.4,16,16),huggyMat);
-  hHead.position.set(0,5.6,-4);
-  huggyStatue.add(hHead);
-
-  const desk=new THREE.Mesh(new THREE.BoxGeometry(8,1.5,2),trimMat);
-  desk.position.set(0,1,6);
-  desk.castShadow=true;
-  lobby.add(desk); addCollisionFrom(desk);
-
-  greenTape=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.2),new THREE.MeshStandardMaterial({color:0x00ff00}));
-  greenTape.position.set(-5,1.2,2);
-  greenTape.userData.type="tape";
-  lobby.add(greenTape);
-
-  // Security office
-  const secRoom=makeRoom(10,10,6);
-  secRoom.position.set(15,0,5);
-  scene.add(secRoom);
-
-  securityDoor=new THREE.Mesh(new THREE.BoxGeometry(3,6,0.4),trimMat);
-  securityDoor.position.set(10,3,5);
-  securityDoor.userData.locked=true;
-  scene.add(securityDoor); addCollisionFrom(securityDoor);
-
-  grabpack=new THREE.Mesh(new THREE.BoxGeometry(1.5,2,0.5),new THREE.MeshStandardMaterial({color:0x00b0ff}));
-  grabpack.position.set(15,1.2,5);
-  grabpack.userData.type="grabpack";
-  secRoom.add(grabpack);
-
-  // Power room
-  const powerRoom=makeRoom(12,12,6);
-  powerRoom.position.set(-15,0,-5);
-  scene.add(powerRoom);
-
-  const powerDoor=new THREE.Mesh(new THREE.BoxGeometry(3,6,0.4),trimMat);
-  powerDoor.position.set(-10,3,-5);
-  scene.add(powerDoor); addCollisionFrom(powerDoor);
-
-  powerPad=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,0.3,16),new THREE.MeshStandardMaterial({color:0xffaa00}));
-  powerPad.position.set(-15,0.2,-5);
-  powerPad.userData.type="powerPad";
-  powerRoom.add(powerPad);
-
-  // Factory door
-  factoryDoor=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
-  factoryDoor.position.set(0,3,-15);
-  factoryDoor.userData.locked=true;
-  scene.add(factoryDoor); addCollisionFrom(factoryDoor);
-
-  // Fuse room
-  const fuseCorr=new THREE.Mesh(new THREE.BoxGeometry(6,4,20),wallMat);
-  fuseCorr.position.set(0,2,-30);
-  scene.add(fuseCorr); addCollisionFrom(fuseCorr);
-
-  const fuseRoom=makeRoom(14,14,6);
-  fuseRoom.position.set(0,0,-45);
-  scene.add(fuseRoom);
-
-  fusePanel=new THREE.Mesh(new THREE.BoxGeometry(2,3,0.3),new THREE.MeshStandardMaterial({color:0x555555}));
-  fusePanel.position.set(0,2,-7);
-  fusePanel.userData.type="fusePanel";
-  fuseRoom.add(fusePanel);
-
-  fuseMeshes=[];
-  for(let i=0;i<4;i++){
-    const f=new THREE.Mesh(new THREE.BoxGeometry(0.5,1,0.5),new THREE.MeshStandardMaterial({color:0xffff00}));
-    f.position.set((i-1.5)*2,1,(i%2===0?-3:3));
-    f.userData.type="fuse";
-    fuseRoom.add(f);
-    fuseMeshes.push(f);
-  }
-
-  // Make-A-Friend
-  const corrMF=new THREE.Mesh(new THREE.BoxGeometry(6,4,20),wallMat);
-  corrMF.position.set(0,2,-65);
-  scene.add(corrMF); addCollisionFrom(corrMF);
-
-  const makeFriend=makeRoom(24,24,8);
-  makeFriend.position.set(0,0,-85);
-  scene.add(makeFriend);
-
-  toyNodes=[];
-  for(let i=0;i<3;i++){
-    const n=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),toyNodeMat);
-    n.position.set((i-1)*6,3,-8);
-    n.userData.type="toyNode";
-    makeFriend.add(n);
-    toyNodes.push(n);
-  }
-
-  toyGate=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
-  toyGate.position.set(0,3,10);
-  toyGate.userData.locked=true;
-  makeFriend.add(toyGate); addCollisionFrom(toyGate);
-
-  const belt=new THREE.Mesh(new THREE.BoxGeometry(10,0.3,2),new THREE.MeshStandardMaterial({color:0x333333}));
-  belt.position.set(0,0.3,0);
-  makeFriend.add(belt);
-
-  catBee=new THREE.Mesh(new THREE.BoxGeometry(1,1,1.5),new THREE.MeshStandardMaterial({color:0xffdd44}));
-  catBee.position.set(0,0.9,0);
-  catBee.visible=false;
-  catBee.userData.type="toy";
-  makeFriend.add(catBee);
-
-  // Vent chase
-  const vent=makeRoom(6,40,4);
-  vent.position.set(0,0,-115);
-  scene.add(vent);
-
-  huggyChase=new THREE.Mesh(new THREE.BoxGeometry(2,5,2),huggyMat);
-  huggyChase.position.set(0,2,-95);
-  vent.add(huggyChase);
-
-  // Catwalks
-  const catwalkFloor=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,30),new THREE.MeshStandardMaterial({color:0x444444}));
-  catwalkFloor.position.set(0,5,-140);
-  scene.add(catwalkFloor); addCollisionFrom(catwalkFloor);
-
-  crate=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),new THREE.MeshStandardMaterial({color:0x666666}));
-  crate.position.set(0,10,-145);
-  scene.add(crate);
-
-  // Poppy door + room
-  poppyDoor=new THREE.Mesh(new THREE.BoxGeometry(4,6,0.4),trimMat);
-  poppyDoor.position.set(0,3,-155);
-  scene.add(poppyDoor); addCollisionFrom(poppyDoor);
-
-  const poppyRoom=makeRoom(12,12,6);
-  poppyRoom.position.set(0,0,-175);
-  scene.add(poppyRoom);
-
-  poppyCase=new THREE.Mesh(new THREE.BoxGeometry(2,4,2),new THREE.MeshStandardMaterial({color:0x9999ff,transparent:true,opacity:0.3}));
-  poppyCase.position.set(0,2,-4);
-  poppyCase.userData.type="poppyCase";
-  poppyRoom.add(poppyCase);
-}
-
-function canMoveTo(nextPos,radius=0.7){
-  for(const box of collisionBoxes){
-    const expanded=box.clone();
-    expanded.min.x-=radius;
-    expanded.max.x+=radius;
-    expanded.min.z-=radius;
-    expanded.max.z+=radius;
-    expanded.min.y=-Infinity;
-    expanded.max.y=Infinity;
-    if(expanded.containsPoint(nextPos)){
-      return false;
-    }
-  }
-  return true;
-}
-
-// ===== INTERACTION (same as before) =====
-function tryInteract(){
-  if(state==="dead"||state==="credits")return;
-  const pos=player.position.clone();
-  prompt.textContent="";
-
-  if(state==="lobby"){
-    if(greenTape && greenTape.visible && greenTape.position.distanceTo(pos)<2){
-      inventory.haveTape=true;
-      greenTape.visible=false;
-      hud.textContent="LOBBY\nLeith Pierre: \"Please obey Playtime Co. policies.\"\nSecurity Office unlocked.";
-      securityDoor.userData.locked=false;
-      info.textContent="Area: Lobby\nHands: 0 | Fuses: 0 | Toy: no\nSecurity: unlocked.";
-      return;
-    }
-  }
-
-  if(!securityDoor.userData.locked && pos.distanceTo(securityDoor.position)<3 && state==="lobby"){
-    state="security";
-    hud.textContent="SECURITY OFFICE\nGrab the blue GrabPack hand.";
-    info.textContent="Area: Security Office\nHands: 0 | Fuses: 0 | Toy: no";
-    return;
-  }
-
-  if(state==="security"){
-    if(grabpack && grabpack.visible && grabpack.position.clone().add(new THREE.Vector3(15,0,5).sub(new THREE.Vector3(15,0,5))).distanceTo(pos)<3){
-      inventory.grabHands=1;
-      grabpack.visible=false;
-      hud.textContent="LOBBY\nYou have the blue GrabPack hand.\nLeft hall leads to the Power Room.";
-      state="lobby";
-      info.textContent="Area: Lobby\nHands: 1 | Fuses: 0 | Toy: no";
-      return;
-    }
-  }
-
-  if(state==="power"){
-    if(powerPad && powerPad.position.clone().add(new THREE.Vector3(-15,0,-5).sub(new THREE.Vector3(-15,0,-5))).distanceTo(pos)<3){
-      hud.textContent="POWER ROOM\nPower restored.\nReturn to the lobby.";
-      factoryDoor.userData.locked=false;
-      state="lobby";
-      info.textContent="Area: Lobby\nHands: 1 | Fuses: 0 | Toy: no\nPower: on.";
-      return;
-    }
-  }
-
-  if(state==="fuses"){
-    fuseMeshes.forEach(f=>{
-      if(f.visible && f.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(pos)<2){
-        f.visible=false;
-        inventory.fuses++;
-        hud.textContent=`FUSE ROOM\nFuses collected: ${inventory.fuses}/4`;
-        info.textContent=`Area: Fuse Room\nHands: 1 | Fuses: ${inventory.fuses} | Toy: no`;
-      }
-    });
-    if(inventory.fuses>=4 && fusePanel.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(pos)<3){
-      inventory.grabHands=2;
-      hud.textContent="FUSE ROOM\nPower restored. You now have both GrabPack hands.\nHead deeper into the factory.";
-      state="factoryHalls";
-      info.textContent="Area: Factory Halls\nHands: 2 | Fuses: 4 | Toy: no";
-      return;
-    }
-  }
-
-  if(state==="makeFriend"){
-    toyNodes.forEach(n=>{
-      if(!n.userData.active && n.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(pos)<3){
-        n.material.color.set(0x00ff00);
-        n.userData.active=true;
-      }
-    });
-    if(!inventory.toyCrafted && toyNodes.every(n=>n.userData.active===true)){
-      inventory.toyCrafted=true;
-      catBee.visible=true;
-      hud.textContent="MAKE-A-FRIEND\nToy is ready. Pick it up.";
-      info.textContent="Area: Make-A-Friend\nHands: 2 | Fuses: 4 | Toy: yes";
-    }
-    if(inventory.toyCrafted && catBee.visible && catBee.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(pos)<3){
-      catBee.visible=false;
-      toyGate.userData.locked=false;
-      hud.textContent="MAKE-A-FRIEND\nGate open. Head into the dark hallway.";
-    }
-    return;
-  }
-
-  if(state==="poppy"){
-    if(poppyCase && poppyCase.position.clone().add(new THREE.Vector3(0,0,-175)).distanceTo(pos)<3){
-      state="credits";
+function checkWinLose(now){
+  // Powerout lose condition can be added later
+  if(game.hour>=6){
+    if(game.state==='office'){
+      game.state='win';
       stopAllMusic();
-      fadeIn(protoMusic,options.masterVolume,1500);
-      creditsUI.style.display="flex";
-      hud.textContent="";
-      info.textContent="";
-      prompt.textContent="";
-      return;
+      sixAMDiv.style.display='flex';
+      setTimeout(()=>{
+        game.running=false;
+      },3000);
     }
   }
 }
 
-// ===== MAIN LOOP =====
-function animate(){
-  requestAnimationFrame(animate);
-  if(!renderer||!scene)return;
-  const dt=0.016;
+// ===== DRAWING =====
+function drawOffice(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  camera.fov += (fovTarget - camera.fov) * 0.1;
-  camera.updateProjectionMatrix();
+  // Basic office background
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.fillStyle = '#101420';
+  ctx.fillRect(0,0,w,h);
 
-  if(state!=="dead" && state!=="credits"){
-    const forward=new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y=0;forward.normalize();
-    const right=new THREE.Vector3();
-    right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
+  // Desk
+  ctx.fillStyle='#181c28';
+  ctx.fillRect(w*0.2,h*0.65,w*0.6,h*0.1);
 
-    let move=new THREE.Vector3();
-    if(keys["KeyW"])move.add(forward);
-    if(keys["KeyS"])move.sub(forward);
-    if(keys["KeyA"])move.sub(right);
-    if(keys["KeyD"])move.add(right);
-    if(move.lengthSq()>0)move.normalize();
+  // Left door area
+  ctx.fillStyle = game.leftDoorClosed ? '#303340' : '#05070b';
+  ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
 
-    const speed=6;
-    const step=move.clone().multiplyScalar(speed*dt);
+  // Right door area
+  ctx.fillStyle = game.rightDoorClosed ? '#303340' : '#05070b';
+  ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
 
-    const nextX=player.position.clone().add(new THREE.Vector3(step.x,0,0));
-    if(canMoveTo(nextX,0.7))player.position.x=nextX.x;
-    const nextZ=player.position.clone().add(new THREE.Vector3(0,0,step.z));
-    if(canMoveTo(nextZ,0.7))player.position.z=nextZ.z;
-    player.position.y=2;
-
-    const z=player.position.z;
-    if(z>-10) info.textContent=`Area: Lobby\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else if(z>-35) info.textContent=`Area: Power / Halls\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else if(z>-60) info.textContent=`Area: Fuse Room\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else if(z>-100) info.textContent=`Area: Make-A-Friend\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else if(z>-130) info.textContent=`Area: Vents\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else if(z>-160) info.textContent=`Area: Catwalks\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-    else info.textContent=`Area: Poppy Room\nHands: ${inventory.grabHands} | Fuses: ${inventory.fuses} | Toy: ${inventory.toyCrafted?'yes':'no'}`;
-
-    if(state==="lobby"){
-      if(z<-10){
-        if(factoryDoor.userData.locked){
-          state="power";
-          hud.textContent="POWER ROOM\nUse the power pad to restore electricity.";
-        }else{
-          state="fuses";
-          hud.textContent="FUSE ROOM\nCollect all four fuses.";
-        }
-      }
-    }else if(state==="fuses" && z<-60){
-      state="makeFriend";
-      hud.textContent="MAKE-A-FRIEND\nActivate all power nodes.";
-    }else if(state==="makeFriend" && z<-105){
-      if(!toyGate.userData.locked){
-        state="chase";
-        stopAllMusic();
-        fadeIn(chaseMusic,options.masterVolume,1500);
-        hud.textContent="VENT CHASE\nRun. If Huggy catches you, you die.";
-      }
-    }else if(state==="chase" && z<-135){
-      state="catwalks";
-      hud.textContent="CATWALKS\nDrop the crate on Huggy.";
-    }else if(state==="catwalks" && z<-150){
-      poppyDoor.position.y-=5*dt;
-      if(poppyDoor.position.y<0){
-        state="poppy";
-        hud.textContent="POPPY ROOM\nOpen the case.";
-      }
-    }
-
-    if(state==="chase" && huggyChase){
-      const target=player.position.clone();
-      const pos=huggyChase.position;
-      const dir=target.sub(pos);dir.y=0;
-      const d=dir.length();
-      if(d>0.01)dir.normalize();
-      huggyChase.position.addScaledVector(dir,8*dt);
-      if(d<6) fovTarget=80; else fovTarget=75;
-      if(d<2.5) triggerJumpscareAndDeath();
-    }else{
-      fovTarget=75;
-    }
-
-    if(state==="catwalks" && crate){
-      if(player.position.distanceTo(crate.position)<5){
-        crate.position.y-=20*dt;
-        if(crate.position.y<3) crate.position.y=3;
-      }
-    }
-
-    prompt.textContent="";
-    if(state==="lobby" && greenTape && greenTape.visible && greenTape.position.distanceTo(player.position)<2){
-      prompt.textContent="Press E to pick up the tape.";
-    }else if(state==="lobby" && !securityDoor.userData.locked && player.position.distanceTo(securityDoor.position)<3){
-      prompt.textContent="Press E to enter the Security Office.";
-    }else if(state==="security" && grabpack && grabpack.visible && grabpack.position.clone().add(new THREE.Vector3(15,0,5).sub(new THREE.Vector3(15,0,5))).distanceTo(player.position)<3){
-      prompt.textContent="Press E to pick up the GrabPack.";
-    }else if(state==="power" && powerPad && powerPad.position.clone().add(new THREE.Vector3(-15,0,-5).sub(new THREE.Vector3(-15,0,-5))).distanceTo(player.position)<3){
-      prompt.textContent="Press E to use the power pad.";
-    }else if(state==="fuses"){
-      fuseMeshes.forEach(f=>{
-        if(f.visible && f.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(player.position)<2){
-          prompt.textContent="Press E to pick up fuse.";
-        }
-      });
-      if(inventory.fuses>=4 && fusePanel.position.clone().add(new THREE.Vector3(0,0,-45)).distanceTo(player.position)<3){
-        prompt.textContent="Press E to place fuses.";
-      }
-    }else if(state==="makeFriend"){
-      toyNodes.forEach(n=>{
-        if(!n.userData.active && n.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(player.position)<3){
-          prompt.textContent="Press E to power node.";
-        }
-      });
-      if(inventory.toyCrafted && catBee.visible && catBee.position.clone().add(new THREE.Vector3(0,0,-85)).distanceTo(player.position)<3){
-        prompt.textContent="Press E to take toy.";
-      }
-    }else if(state==="poppy" && poppyCase && poppyCase.position.clone().add(new THREE.Vector3(0,0,-175)).distanceTo(player.position)<3){
-      prompt.textContent="Press E to open Poppy's case.";
-    }
+  // Left hallway light effect
+  if(game.leftLightOn){
+    ctx.fillStyle='rgba(200,200,255,0.4)';
+    ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
+  }
+  // Right hallway light effect
+  if(game.rightLightOn){
+    ctx.fillStyle='rgba(200,200,255,0.4)';
+    ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
   }
 
-  renderer.render(scene,camera);
+  // Draw Huggy silhouette if near door
+  const hState = game.anim.huggy.state;
+  if(hState==='hall1'){
+    // show in left hall
+    ctx.fillStyle='#0033aa';
+    ctx.fillRect(w*0.06,h*0.35,40,120); // placeholder
+  }else if(hState==='door'){
+    // show at left doorway
+    ctx.fillStyle='#0055ff';
+    ctx.fillRect(w*0.02,h*0.35,60,150); // closer
+  }
+
+  // HUD text
+  hud.textContent = `Night ${game.night}\nHuggy state: ${game.anim.huggy.state}`;
+}
+
+// Cam view placeholder
+function drawCamView(){
+  if(!game.camsOpen) return;
+  const vw = 480, vh=270;
+  const cx = canvas.width/2 - vw/2;
+  const cy = canvas.height/2 - vh/2;
+
+  ctx.save();
+  ctx.strokeStyle='#666';
+  ctx.strokeRect(cx,cy,vw,vh);
+
+  ctx.fillStyle='#05050a';
+  ctx.fillRect(cx,cy,vw,vh);
+
+  ctx.font='14px Arial';
+  ctx.fillStyle='#ddd';
+
+  if(game.currentCam===1){
+    ctx.fillText('CAM 1 – STAGE (Huggy idle)',cx+20,cy+30);
+    ctx.fillStyle='#0033aa';
+    ctx.fillRect(cx+vw/2-30,cy+vh/2-60,60,120); // Huggy at stage
+  }else if(game.currentCam===2){
+    ctx.fillText('CAM 2 – LEFT HALL',cx+20,cy+30);
+    if(game.anim.huggy.state==='hall1' || game.anim.huggy.state==='door'){
+      ctx.fillStyle='#0033aa';
+      ctx.fillRect(cx+vw*0.6,cy+vh*0.5-60,50,120);
+    }
+  }else if(game.currentCam===3){
+    ctx.fillText('CAM 3 – RIGHT HALL (stub)',cx+20,cy+30);
+  }else if(game.currentCam===4){
+    ctx.fillText('CAM 4 – CATNAP COVE (stub)',cx+20,cy+30);
+  }
+
+  ctx.restore();
 }
 </script>
 </body>
