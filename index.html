@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PROJECT: PLAYCARE – NIGHT SHIFT</title>
+<title>Five Nights at Harley's</title>
 <style>
 body{
   margin:0;
@@ -275,8 +275,8 @@ body{
   <div id="titleBackdrop"></div>
   <div id="titleContent">
     <h1 id="titleLogo">
-      <span>PROJECT:</span>
-      <span>PLAYCARE</span>
+      <span>FIVE NIGHTS AT</span>
+      <span>HARLEY'S</span>
     </h1>
     <div id="titleTagline">Night Shift – “Everyone disappeared. They’re still here.”</div>
     <div id="titleButtons">
@@ -385,9 +385,8 @@ const camButtons=Array.from(document.querySelectorAll('.camBtn'));
 const sixAMDiv=document.getElementById('sixAM');
 const jumpscareDiv=document.getElementById('jumpscare');
 
-// Options / audio helpers
+// Options / audio
 const options={masterVolume:0.75,mouseSensitivity:0.0025,flashlightEnabled:true};
-
 function fadeIn(audio,target=0.75,duration=1500){
   audio.volume=0;audio.play().catch(()=>{});
   const step=target/(duration/50);
@@ -411,7 +410,7 @@ settingsBtn.onclick=()=>settingsPanel.style.display='block';
 settingsClose.onclick=()=>settingsPanel.style.display='none';
 quitBtn.onclick=()=>{titleScreen.style.display='none';fadeOut(titleMusic,800);};
 
-// Game state (Clickteam-style)
+// Game state
 const game={
   running:false,
   night:1,
@@ -432,10 +431,10 @@ const game={
   camsOpen:false,
   currentCam:1,
 
-  state:'menu' // 'menu','night','jumpscare','win'
+  state:'menu'
 };
 
-// Animatronics
+// Animatronics AI
 const nightAIBase={
   1:{huggy:0, mommy:0},
   2:{huggy:3, mommy:1}
@@ -453,7 +452,7 @@ const anims={
   mommy:{name:'Mommy',ai:0,state:'STAGE_R',lastCheck:0,interval:6}
 };
 
-// Buttons
+// Office buttons
 leftDoorBtn.onclick=()=>{if(!game.running||game.state!=='night')return;game.leftDoor=!game.leftDoor;leftDoorBtn.classList.toggle('on',game.leftDoor);};
 rightDoorBtn.onclick=()=>{if(!game.running||game.state!=='night')return;game.rightDoor=!game.rightDoor;rightDoorBtn.classList.toggle('on',game.rightDoor);};
 leftLightBtn.onclick=()=>{if(!game.running||game.state!=='night')return;game.leftLight=!game.leftLight;leftLightBtn.classList.toggle('on',game.leftLight);};
@@ -499,11 +498,13 @@ function startNight(n){
   game.running=true;
   game.state='night';
   game.night=n;
+
+  // hard reset time
   game.hour=12;
   game.minute=0;
   game.lastMinuteTick=performance.now();
-  game.power=100;
 
+  game.power=100;
   game.leftDoor=game.rightDoor=false;
   game.leftLight=game.rightLight=false;
   game.camsOpen=false;
@@ -511,8 +512,10 @@ function startNight(n){
 
   anims.huggy.ai=nightAIBase[n]?.huggy||0;
   anims.mommy.ai=nightAIBase[n]?.mommy||0;
-  anims.huggy.state='STAGE_L';anims.huggy.lastCheck=0;
-  anims.mommy.state='STAGE_R';anims.mommy.lastCheck=0;
+  anims.huggy.state='STAGE_L';
+  anims.huggy.lastCheck=0;
+  anims.mommy.state='STAGE_R';
+  anims.mommy.lastCheck=0;
 
   timeDisplay.style.display='block';
   powerBar.style.display='block';
@@ -532,7 +535,7 @@ function startNight(n){
   requestAnimationFrame(loop);
 }
 
-// Main loop (Clickteam-style tick)
+// Loop
 let lastFrame=0;
 function loop(now){
   if(!game.running) return;
@@ -552,7 +555,7 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 
-// Time / power
+// Time & power
 function updateTime(now){
   const elapsed=(now-game.lastMinuteTick)/1000;
   if(elapsed>=game.minuteLength){
@@ -561,7 +564,7 @@ function updateTime(now){
     if(game.minute>=60){
       game.minute=0;
       game.hour++;
-      if(game.hour>12)game.hour=1;
+      if(game.hour>12) game.hour=1;
     }
     const inc=hourIncrements[game.hour];
     if(inc){
@@ -582,15 +585,13 @@ function updatePower(dt){
   if(game.camsOpen) drain+=game.camDrain;
   game.power-=drain*dt*60;
   if(game.power<0) game.power=0;
-
   powerFill.style.width=`${game.power}%`;
   powerFill.style.background=game.power<15?'#ff4444':game.power<30?'#ffcc33':'#46ff46';
 }
 
-// AI: Huggy & Mommy, FNAF-style move checks
+// AI
 function updateAI(now){
   const t=now/1000;
-
   if(game.night>=1) tryMoveAnim(anims.huggy,huggyPath,t);
   if(game.night>=2) tryMoveAnim(anims.mommy,mommyPath,t);
 }
@@ -606,11 +607,9 @@ function tryMoveAnim(anim,path,t){
 
   const idx=path.indexOf(anim.state);
   if(idx<0){anim.state=path[0];return;}
-
   if(idx<path.length-1){
     anim.state=path[idx+1];
   }else{
-    // at door
     if(anim===anims.huggy){
       if(!game.leftDoor){
         triggerJumpscare('Huggy (left door)');
@@ -640,7 +639,8 @@ function triggerJumpscare(who){
 }
 
 function checkWin(){
-  if(game.hour>=6 && game.state==='night'){
+  if(game.state!=='night')return;
+  if(game.hour===6 && game.minute===0){
     game.state='win';
     sixAMDiv.style.display='flex';
     stopAllMusic();
@@ -657,113 +657,65 @@ function checkWin(){
   }
 }
 
-// Draw office like Clickteam
+// Draw office
 function drawOffice(){
-  const w=canvas.width, h=canvas.height;
+  const w=canvas.width,h=canvas.height;
   ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='#101420';ctx.fillRect(0,0,w,h);
+  ctx.fillStyle='#181c28';ctx.fillRect(w*0.2,h*0.65,w*0.6,h*0.1);
 
-  // BG
-  ctx.fillStyle='#101420';
-  ctx.fillRect(0,0,w,h);
-
-  // Desk
-  ctx.fillStyle='#181c28';
-  ctx.fillRect(w*0.2,h*0.65,w*0.6,h*0.1);
-
-  // Doors
   ctx.fillStyle=game.leftDoor?'#303340':'#05070b';
   ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
   ctx.fillStyle=game.rightDoor?'#303340':'#05070b';
   ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
 
-  // Lights
-  if(game.leftLight){
-    ctx.fillStyle='rgba(200,200,255,0.4)';
-    ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
-  }
-  if(game.rightLight){
-    ctx.fillStyle='rgba(200,200,255,0.4)';
-    ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
-  }
+  if(game.leftLight){ctx.fillStyle='rgba(200,200,255,0.4)';ctx.fillRect(0,h*0.3,w*0.2,h*0.4);}
+  if(game.rightLight){ctx.fillStyle='rgba(200,200,255,0.4)';ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);}
 
-  // Huggy in office
   if(anims.huggy.state==='CAM2A'){
-    ctx.fillStyle='#0033aa';
-    ctx.fillRect(w*0.06,h*0.36,50,130);
+    ctx.fillStyle='#0033aa';ctx.fillRect(w*0.06,h*0.36,50,130);
   }else if(anims.huggy.state==='DOOR_L'){
-    ctx.fillStyle='#77aaff';
-    ctx.fillRect(w*0.02,h*0.35,60,150);
+    ctx.fillStyle='#77aaff';ctx.fillRect(w*0.02,h*0.35,60,150);
   }
-
-  // Mommy in office
   if(anims.mommy.state==='CAM2B'){
-    ctx.fillStyle='#aa3377';
-    ctx.fillRect(w*0.84,h*0.36,50,130);
+    ctx.fillStyle='#aa3377';ctx.fillRect(w*0.84,h*0.36,50,130);
   }else if(anims.mommy.state==='DOOR_R'){
-    ctx.fillStyle='#ff99cc';
-    ctx.fillRect(w*0.9,h*0.35,60,150);
+    ctx.fillStyle='#ff99cc';ctx.fillRect(w*0.9,h*0.35,60,150);
   }
 
-  statusText.textContent=`Night ${game.night}\nHuggy AI: ${anims.huggy.ai} (${anims.huggy.state})\nMommy AI: ${anims.mommy.ai} (${anims.mommy.state})\nPower: ${game.power.toFixed(0)}%`;
+  statusText.textContent=
+    `Night ${game.night}\n`+
+    `Time: ${game.hour}:${game.minute.toString().padStart(2,'0')}\n`+
+    `Power: ${game.power.toFixed(0)}%\n`+
+    `Huggy AI: ${anims.huggy.ai} (${anims.huggy.state})\n`+
+    `Mommy AI: ${anims.mommy.ai} (${anims.mommy.state})`;
 }
 
-// Draw cams (Clickteam style, simple text + silhouettes)
+// Draw cams
 function drawCamView(){
-  const vw=560, vh=315;
+  const vw=560,vh=315;
   const cx=canvas.width/2-vw/2;
   const cy=canvas.height*0.45-vh/2;
-
   ctx.save();
-  ctx.strokeStyle='#666';
-  ctx.strokeRect(cx,cy,vw,vh);
-  ctx.fillStyle='#05050a';
-  ctx.fillRect(cx,cy,vw,vh);
-  ctx.fillStyle='#ddd';
-  ctx.font='14px Arial';
-
+  ctx.strokeStyle='#666';ctx.strokeRect(cx,cy,vw,vh);
+  ctx.fillStyle='#05050a';ctx.fillRect(cx,cy,vw,vh);
+  ctx.fillStyle='#ddd';ctx.font='14px Arial';
   const c=game.currentCam;
-
-  // 1A – Stage
   if(c===1){
     ctx.fillText('Stage – Huggy & Mommy idle',cx+20,cy+30);
-    if(anims.huggy.state==='STAGE_L'){
-      ctx.fillStyle='#0033aa';
-      ctx.fillRect(cx+vw*0.3,cy+vh*0.5-60,40,120);
-    }
-    if(anims.mommy.state==='STAGE_R'){
-      ctx.fillStyle='#aa3377';
-      ctx.fillRect(cx+vw*0.6,cy+vh*0.5-60,40,120);
-    }
-  }
-  // 1B – main hall
-  else if(c===2){
+    if(anims.huggy.state==='STAGE_L'){ctx.fillStyle='#0033aa';ctx.fillRect(cx+vw*0.3,cy+vh*0.5-60,40,120);}
+    if(anims.mommy.state==='STAGE_R'){ctx.fillStyle='#aa3377';ctx.fillRect(cx+vw*0.6,cy+vh*0.5-60,40,120);}
+  }else if(c===2){
     ctx.fillText('Hall (1B)',cx+20,cy+30);
-    if(anims.huggy.state==='CAM1B'){
-      ctx.fillStyle='#0033aa';
-      ctx.fillRect(cx+vw*0.45,cy+vh*0.5-60,40,120);
-    }
-    if(anims.mommy.state==='CAM1B'){
-      ctx.fillStyle='#aa3377';
-      ctx.fillRect(cx+vw*0.55,cy+vh*0.5-60,40,120);
-    }
-  }
-  // 2A – left hall
-  else if(c===3){
+    if(anims.huggy.state==='CAM1B'){ctx.fillStyle='#0033aa';ctx.fillRect(cx+vw*0.45,cy+vh*0.5-60,40,120);}
+    if(anims.mommy.state==='CAM1B'){ctx.fillStyle='#aa3377';ctx.fillRect(cx+vw*0.55,cy+vh*0.5-60,40,120);}
+  }else if(c===3){
     ctx.fillText('Left Hall (2A)',cx+20,cy+30);
-    if(anims.huggy.state==='CAM2A'||anims.huggy.state==='DOOR_L'){
-      ctx.fillStyle='#0055ff';
-      ctx.fillRect(cx+vw*0.4,cy+vh*0.5-60,50,130);
-    }
-  }
-  // 2B – right hall
-  else if(c===4){
+    if(anims.huggy.state==='CAM2A'||anims.huggy.state==='DOOR_L'){ctx.fillStyle='#0055ff';ctx.fillRect(cx+vw*0.4,cy+vh*0.5-60,50,130);}
+  }else if(c===4){
     ctx.fillText('Right Hall (2B)',cx+20,cy+30);
-    if(anims.mommy.state==='CAM2B'||anims.mommy.state==='DOOR_R'){
-      ctx.fillStyle='#ff5588';
-      ctx.fillRect(cx+vw*0.55,cy+vh*0.5-60,50,130);
-    }
-  }
-  else if(c===5){
+    if(anims.mommy.state==='CAM2B'||anims.mommy.state==='DOOR_R'){ctx.fillStyle='#ff5588';ctx.fillRect(cx+vw*0.55,cy+vh*0.5-60,50,130);}
+  }else if(c===5){
     ctx.fillText('Right Corridor (CAM 3) – placeholder',cx+20,cy+30);
   }else if(c===6){
     ctx.fillText('Storage (CAM 4A) – placeholder',cx+20,cy+30);
@@ -778,7 +730,6 @@ function drawCamView(){
   }else if(c===11){
     ctx.fillText('Poppy Door (CAM 8) – placeholder',cx+20,cy+30);
   }
-
   ctx.restore();
 }
 </script>
