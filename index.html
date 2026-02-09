@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PROJECT: PLAYCARE – NIGHT SHIFT</title>
+<title>PROJECT: PLAYCARE – NIGHT SHIFT (Nights 1–2)</title>
 <style>
 body{
   margin:0;
@@ -92,7 +92,7 @@ body{
   box-shadow:0 0 22px rgba(255,60,60,0.6);
 }
 
-/* SETTINGS (simple for now) */
+/* SETTINGS (basic) */
 #settingsPanel{
   position:absolute;
   top:50%;left:50%;
@@ -179,7 +179,7 @@ body{
   background:#46ff46;
 }
 
-/* OFFICE UI clickable regions */
+/* Office buttons */
 .uiButton{
   position:absolute;
   border:2px solid #666;
@@ -190,6 +190,7 @@ body{
   cursor:pointer;
   text-align:center;
   user-select:none;
+  z-index:10;
 }
 .uiButton.on{
   background:#ff4444;
@@ -200,7 +201,7 @@ body{
 #rightLightBtn{right:40px;bottom:50px;}
 #camBtn{left:50%;bottom:30px;transform:translateX(-50%);}
 
-/* CAMERA MONITOR OVERLAY */
+/* Camera overlay */
 #camOverlay{
   position:absolute;
   inset:0;
@@ -211,9 +212,9 @@ body{
 #camView{
   position:absolute;
   left:50%;
-  top:50%;
-  width:480px;
-  height:270px;
+  top:45%;
+  width:560px;
+  height:315px;
   transform:translate(-50%,-50%);
   background:#050509;
   border:2px solid #666;
@@ -228,14 +229,17 @@ body{
 }
 .camMap{
   position:absolute;
-  bottom:-80px;
+  bottom:-90px;
   left:50%;
   transform:translateX(-50%);
   display:flex;
-  gap:6px;
+  flex-wrap:wrap;
+  gap:4px;
+  width:560px;
+  justify-content:center;
 }
 .camMap button{
-  padding:3px 8px;
+  padding:3px 6px;
   font-size:11px;
   background:#222;
   border:1px solid #555;
@@ -247,7 +251,7 @@ body{
   border-color:#aaf;
 }
 
-/* Jumpscare & 6 AM */
+/* Jumpscare & night complete */
 #jumpscare{
   position:absolute;
   inset:0;
@@ -260,7 +264,7 @@ body{
   font-size:32px;
   letter-spacing:4px;
 }
-#sixAM{
+#nightComplete{
   position:absolute;
   inset:0;
   display:none;
@@ -269,8 +273,8 @@ body{
   background:black;
   color:white;
   z-index:40;
-  font-size:32px;
-  letter-spacing:4px;
+  font-size:28px;
+  letter-spacing:3px;
 }
 </style>
 </head>
@@ -288,7 +292,7 @@ body{
     </h1>
     <div id="titleTagline">Night Shift – “Everyone disappeared. They’re still here.”</div>
     <div id="titleButtons">
-      <button class="titleBtn" id="playBtn">New Game</button>
+      <button class="titleBtn" id="playBtn">New Game (Night 1)</button>
       <button class="titleBtn" id="settingsBtn">Settings</button>
       <button class="titleBtn" id="quitBtn">Quit</button>
     </div>
@@ -329,33 +333,36 @@ body{
 <!-- Camera overlay -->
 <div id="camOverlay">
   <div id="camView">
-    <div id="camLabel">CAM 1 – STAGE</div>
-    <!-- Placeholder: we just draw into canvas for now -->
+    <div id="camLabel">CAM 1A – STAGE</div>
   </div>
   <div class="camMap">
-    <button data-cam="1" class="camBtn">CAM 1</button>
-    <button data-cam="2" class="camBtn">CAM 2</button>
-    <button data-cam="3" class="camBtn">CAM 3</button>
-    <button data-cam="4" class="camBtn">CAM 4</button>
+    <!-- 11 cams matching FNAF count -->
+    <button data-cam="1" class="camBtn">CAM 1A</button>
+    <button data-cam="2" class="camBtn">CAM 1B</button>
+    <button data-cam="3" class="camBtn">CAM 2A</button>
+    <button data-cam="4" class="camBtn">CAM 2B</button>
+    <button data-cam="5" class="camBtn">CAM 3</button>
+    <button data-cam="6" class="camBtn">CAM 4A</button>
+    <button data-cam="7" class="camBtn">CAM 4B</button>
+    <button data-cam="8" class="camBtn">CAM 5 (CatNap)</button>
+    <button data-cam="9" class="camBtn">CAM 6</button>
+    <button data-cam="10" class="camBtn">CAM 7</button>
+    <button data-cam="11" class="camBtn">CAM 8</button>
   </div>
 </div>
 
-<!-- Jumpscare / 6AM -->
-<div id="jumpscare">HUGGY GOT YOU</div>
-<div id="sixAM">6 AM</div>
+<!-- Jumpscare / Night complete -->
+<div id="jumpscare">YOU DIED</div>
+<div id="nightComplete">NIGHT COMPLETE</div>
 
 <!-- AUDIO -->
 <audio id="titleMusic" src="Title music.mp3" loop></audio>
-<audio id="officeMusic" src="Bgm-1.mp3" loop></audio>
-<audio id="chaseMusic" src="chase music.mp3" loop></audio>
-<audio id="protoMusic" src="Prototype encounter music.mp3" loop></audio>
 <audio id="jumpscareSound" src="jumpscare.mp3"></audio>
 
 <script>
-// ===== SIMPLE 2D OFFICE USING CANVAS (no pointer lock) =====
+// ===== Canvas setup =====
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 function resizeCanvas(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -375,9 +382,6 @@ const sensSlider = document.getElementById('sensSlider');
 const flashToggle = document.getElementById('flashToggle');
 
 const titleMusic = document.getElementById('titleMusic');
-const officeMusic = document.getElementById('officeMusic');
-const chaseMusic = document.getElementById('chaseMusic');
-const protoMusic = document.getElementById('protoMusic');
 const jumpscareSound = document.getElementById('jumpscareSound');
 
 const hud = document.getElementById('hud');
@@ -397,36 +401,36 @@ const camLabel = document.getElementById('camLabel');
 const camButtons = Array.from(document.querySelectorAll('.camBtn'));
 
 const jumpscareDiv = document.getElementById('jumpscare');
-const sixAMDiv = document.getElementById('sixAM');
+const nightCompleteDiv = document.getElementById('nightComplete');
 
-// ===== OPTIONS =====
+// ===== options / audio helpers =====
 const options = {
-  masterVolume: 0.75,
-  mouseSensitivity: 0.0025,
-  flashlightEnabled: true
+  masterVolume:0.75,
+  mouseSensitivity:0.0025,
+  flashlightEnabled:true
 };
 
 function fadeIn(audio,target=0.75,duration=1500){
-  audio.volume = 0;
+  audio.volume=0;
   audio.play().catch(()=>{});
-  const step = target/(duration/50);
-  const id = setInterval(()=>{
-    audio.volume = Math.min(target, audio.volume+step);
-    if(audio.volume>=target) clearInterval(id);
+  const step=target/(duration/50);
+  const id=setInterval(()=>{
+    audio.volume=Math.min(target,audio.volume+step);
+    if(audio.volume>=target)clearInterval(id);
   },50);
 }
 function fadeOut(audio,duration=1500){
-  const step = (audio.volume||0)/(duration/50||1);
-  const id = setInterval(()=>{
-    audio.volume = Math.max(0, audio.volume-step);
+  const step=(audio.volume||0)/(duration/50||1);
+  const id=setInterval(()=>{
+    audio.volume=Math.max(0,audio.volume-step);
     if(audio.volume<=0){audio.pause();clearInterval(id);}
   },50);
 }
 function stopAllMusic(){
-  [titleMusic,officeMusic,chaseMusic,protoMusic].forEach(a=>{a.pause();a.currentTime=0;});
+  [titleMusic].forEach(a=>{a.pause();a.currentTime=0;});
 }
 function applyMasterVolume(){
-  [titleMusic,officeMusic,chaseMusic,protoMusic,jumpscareSound].forEach(a=>{a.volume=options.masterVolume;});
+  [titleMusic,jumpscareSound].forEach(a=>{a.volume=options.masterVolume;});
 }
 
 // init title music
@@ -438,341 +442,428 @@ volumeSlider.addEventListener('input',()=>{
   applyMasterVolume();
 });
 sensSlider.addEventListener('input',()=>{
-  const v = Number(sensSlider.value);
+  const v=Number(sensSlider.value);
   options.mouseSensitivity = 0.001 + (v-20)*(0.01-0.001)/(200-20);
 });
 flashToggle.addEventListener('change',()=>{
-  options.flashlightEnabled = flashToggle.checked;
+  options.flashlightEnabled=flashToggle.checked;
 });
 
 // settings UI
-settingsBtn.onclick = ()=> settingsPanel.style.display='block';
-settingsClose.onclick = ()=> settingsPanel.style.display='none';
-quitBtn.onclick = ()=>{
+settingsBtn.onclick=()=>settingsPanel.style.display='block';
+settingsClose.onclick=()=>settingsPanel.style.display='none';
+quitBtn.onclick=()=>{
   titleScreen.style.display='none';
   fadeOut(titleMusic,800);
 };
 
-// ===== GAME STATE (FNaw style) =====
+// ===== Game state =====
 const game = {
-  running: false,
-  night: 1,
-  hour: 12,
-  minute: 0,
-  timeScale: 10, // 1 in-game minute = 10 real seconds
-  lastMinuteTick: 0,
-  power: 100,
-  powerDrainBase: 0.03, // % per second
-  powerDrainDoors: 0.2,
-  powerDrainLights: 0.1,
+  running:false,
+  night:1,
+  hour:12,
+  minute:0,
+  lastMinuteTick:0,
+  timeScale:8, // 1 minute = 8 real seconds for testing
+  power:100,
+  powerDrainBase:0.03,
+  powerDrainDoors:0.2,
+  powerDrainLights:0.1,
 
-  officeView: 'center', // 'left','center','right'
-  camsOpen: false,
-  currentCam: 1,
-  leftDoorClosed: false,
-  rightDoorClosed: false,
-  leftLightOn: false,
-  rightLightOn: false,
+  officeView:'center',
+  camsOpen:false,
+  currentCam:1,
 
-  anim: {
-    huggy: { state: 'stage', lastMove: 0, moveDelay: 6 }, // states: stage→hall→door
-  },
-  state: 'office', // 'office','jumpscare','win'
-  startTime: 0
+  leftDoorClosed:false,
+  rightDoorClosed:false,
+  leftLightOn:false,
+  rightLightOn:false,
+
+  state:'office', // 'office','jumpscare','win'
+  lastFrame:0
 };
 
-// Night rules for Huggy (Bonnie)
-const huggyPath = ['stage','hall1','door'];
+// AI config
+const nightAIBase = {
+  1: { huggy:0, mommy:0 },
+  2: { huggy:3, mommy:1 }
+};
 
-// ===== INPUT: Office buttons =====
-leftDoorBtn.onclick = ()=>{
-  if(!game.running || game.state!=='office') return;
-  game.leftDoorClosed = !game.leftDoorClosed;
-  leftDoorBtn.classList.toggle('on', game.leftDoorClosed);
+const hourIncrements = {
+  2: { huggy:+1 },
+  3: { huggy:+1, mommy:+1 },
+  4: { huggy:+1, mommy:+1 }
 };
-leftLightBtn.onclick = ()=>{
-  if(!game.running || game.state!=='office') return;
-  game.leftLightOn = !game.leftLightOn;
-  leftLightBtn.classList.toggle('on', game.leftLightOn);
+
+const huggyPath = ['stage','1B','2A','doorL'];   // Bonnie-like left route
+const mommyPath = ['stageR','1B','2B','doorR']; // Chica-like right route
+
+const anims = {
+  huggy: { name:'Huggy', ai:0, state:'stage', lastCheck:0, moveInterval:5 },
+  mommy: { name:'Mommy', ai:0, state:'stageR', lastCheck:0, moveInterval:6 }
 };
-rightDoorBtn.onclick = ()=>{
+
+// ===== Office buttons =====
+leftDoorBtn.onclick=()=>{
   if(!game.running || game.state!=='office') return;
-  game.rightDoorClosed = !game.rightDoorClosed;
-  rightDoorBtn.classList.toggle('on', game.rightDoorClosed);
+  game.leftDoorClosed=!game.leftDoorClosed;
+  leftDoorBtn.classList.toggle('on',game.leftDoorClosed);
 };
-rightLightBtn.onclick = ()=>{
+leftLightBtn.onclick=()=>{
   if(!game.running || game.state!=='office') return;
-  game.rightLightOn = !game.rightLightOn;
-  rightLightBtn.classList.toggle('on', game.rightLightOn);
+  game.leftLightOn=!game.leftLightOn;
+  leftLightBtn.classList.toggle('on',game.leftLightOn);
 };
-camBtn.onclick = ()=>{
+rightDoorBtn.onclick=()=>{
   if(!game.running || game.state!=='office') return;
-  game.camsOpen = !game.camsOpen;
+  game.rightDoorClosed=!game.rightDoorClosed;
+  rightDoorBtn.classList.toggle('on',game.rightDoorClosed);
+};
+rightLightBtn.onclick=()=>{
+  if(!game.running || game.state!=='office') return;
+  game.rightLightOn=!game.rightLightOn;
+  rightLightBtn.classList.toggle('on',game.rightLightOn);
+};
+camBtn.onclick=()=>{
+  if(!game.running || game.state!=='office') return;
+  game.camsOpen=!game.camsOpen;
   camOverlay.style.display = game.camsOpen ? 'block':'none';
 };
 
 camButtons.forEach(btn=>{
-  btn.onclick = ()=>{
-    if(!game.camsOpen || game.state!=='office') return;
-    const camId = Number(btn.dataset.cam);
-    game.currentCam = camId;
-    camButtons.forEach(b=>b.classList.toggle('active', Number(b.dataset.cam)===camId));
+  btn.onclick=()=>{
+    if(!game.camsOpen || game.state!=='office')return;
+    const id=Number(btn.dataset.cam);
+    game.currentCam=id;
+    camButtons.forEach(b=>b.classList.toggle('active',Number(b.dataset.cam)===id));
     updateCamLabel();
   };
 });
 
 function updateCamLabel(){
-  let name = '';
-  switch(game.currentCam){
-    case 1: name='CAM 1 – STAGE';break;
-    case 2: name='CAM 2 – LEFT HALL';break;
-    case 3: name='CAM 3 – RIGHT HALL';break;
-    case 4: name='CAM 4 – CATNAP COVE (stub)';break;
-  }
-  camLabel.textContent = name;
+  const names = {
+    1:'CAM 1A – STAGE',
+    2:'CAM 1B – HALL',
+    3:'CAM 2A – LEFT HALL',
+    4:'CAM 2B – RIGHT HALL',
+    5:'CAM 3 – RIGHT CORRIDOR',
+    6:'CAM 4A – STORAGE',
+    7:'CAM 4B – MAKE-A-FRIEND',
+    8:'CAM 5 – CATNAP COVE',
+    9:'CAM 6 – POWER ROOM',
+    10:'CAM 7 – VENTS',
+    11:'CAM 8 – POPPY DOOR'
+  };
+  camLabel.textContent = names[game.currentCam] || 'CAM';
 }
 
-// ===== TITLE START =====
-playBtn.onclick = ()=>{
+// ===== Start Night =====
+playBtn.onclick=()=>{
   titleScreen.style.display='none';
   settingsPanel.style.display='none';
   fadeOut(titleMusic,800);
   startNight(1);
 };
 
-// ===== NIGHT SETUP =====
 function startNight(n){
-  game.running = true;
-  game.night = n;
-  game.hour = 12;
-  game.minute = 0;
-  game.lastMinuteTick = performance.now();
-  game.power = 100;
-  game.state = 'office';
-  game.officeView = 'center';
-  game.camsOpen = false;
-  game.currentCam = 1;
-  game.leftDoorClosed = false;
-  game.rightDoorClosed = false;
-  game.leftLightOn = false;
-  game.rightLightOn = false;
+  game.running=true;
+  game.night=n;
+  game.hour=12;
+  game.minute=0;
+  game.lastMinuteTick=performance.now();
+  game.power=100;
+  game.state='office';
+  game.camsOpen=false;
+  game.currentCam=1;
+  game.leftDoorClosed=false;
+  game.rightDoorClosed=false;
+  game.leftLightOn=false;
+  game.rightLightOn=false;
 
-  // Huggy reset
-  game.anim.huggy.state = 'stage';
-  game.anim.huggy.lastMove = performance.now();
-  game.anim.huggy.moveDelay = 6; // seconds
+  // AI levels
+  anims.huggy.ai = nightAIBase[n]?.huggy || 0;
+  anims.mommy.ai = nightAIBase[n]?.mommy || 0;
+
+  anims.huggy.state='stage';
+  anims.huggy.lastCheck=0;
+  anims.mommy.state='stageR';
+  anims.mommy.lastCheck=0;
 
   hud.style.display='block';
   info.style.display='block';
   timeDisplay.style.display='block';
   powerBar.style.display='block';
   camOverlay.style.display='none';
-  camButtons.forEach(b=>b.classList.toggle('active', Number(b.dataset.cam)===1));
-  updateCamLabel();
   jumpscareDiv.style.display='none';
-  sixAMDiv.style.display='none';
+  nightCompleteDiv.style.display='none';
+
+  camButtons.forEach(b=>b.classList.toggle('active',Number(b.dataset.cam)===1));
+  updateCamLabel();
 
   stopAllMusic();
   applyMasterVolume();
-  fadeIn(officeMusic, options.masterVolume);
+  fadeIn(titleMusic, options.masterVolume); // night uses title music
 
+  game.lastFrame = performance.now();
   requestAnimationFrame(loop);
 }
 
-// ===== MAIN LOOP =====
+// ===== Loop =====
 function loop(now){
   if(!game.running) return;
-
-  const dt = 0.016; // rough fixed timestep
+  const dt = (now - game.lastFrame)/1000 || 0.016;
+  game.lastFrame=now;
 
   updateTime(now);
   updatePower(dt);
-  updateHuggy(now);
-  checkWinLose(now);
+  updateAnimAI(now,dt);
+  checkWinLose();
   drawOffice();
-  drawCamView();
+  if(game.camsOpen) drawCamView();
 
   requestAnimationFrame(loop);
 }
 
-// ===== TIME & POWER =====
+// ===== Time & power =====
 function updateTime(now){
   const elapsed = (now - game.lastMinuteTick)/1000;
   if(elapsed >= game.timeScale){
     game.lastMinuteTick = now;
-    game.minute += 1;
+    game.minute++;
     if(game.minute>=60){
       game.minute=0;
       game.hour++;
-      if(game.hour===13) game.hour=1; // just in case
+      if(game.hour>12) game.hour=1;
+    }
+    // AI increments at certain hours
+    const inc = hourIncrements[game.hour];
+    if(inc){
+      if(inc.huggy) anims.huggy.ai += inc.huggy;
+      if(inc.mommy) anims.mommy.ai += inc.mommy;
     }
   }
   timeDisplay.textContent = `${game.hour} AM`;
 }
 
 function updatePower(dt){
-  if(game.state!=='office') return;
+  if(game.state!=='office')return;
   let drain = game.powerDrainBase;
   if(game.leftDoorClosed) drain += game.powerDrainDoors;
   if(game.rightDoorClosed) drain += game.powerDrainDoors;
   if(game.leftLightOn) drain += game.powerDrainLights;
   if(game.rightLightOn) drain += game.powerDrainLights;
   if(game.camsOpen) drain += 0.05;
-
-  game.power -= drain*dt*60; // scale up a bit
+  game.power -= drain*dt*60;
   if(game.power<0) game.power=0;
-  powerFill.style.width = `${game.power}%`;
-  if(game.power<30) powerFill.style.background='#ffcc33';
-  if(game.power<15) powerFill.style.background='#ff4444';
+
+  powerFill.style.width=`${game.power}%`;
+  powerFill.style.background = game.power<15 ? '#ff4444' : game.power<30 ? '#ffcc33' : '#46ff46';
 }
 
-// ===== HUGGY AI (Night 1) =====
-function updateHuggy(now){
-  if(game.night!==1 || game.state!=='office') return;
-  const h = game.anim.huggy;
+// ===== AI movement-opportunity system =====
+function updateAnimAI(now,dt){
   const t = now/1000;
-  if(t - h.lastMove < h.moveDelay) return;
 
-  // If cams open and you are looking at Huggy's current cam, slow him down
-  const watchingHuggy = game.camsOpen && (
-    (h.state==='stage' && game.currentCam===1) ||
-    (h.state==='hall1' && game.currentCam===2) ||
-    (h.state==='door' && game.currentCam===2)
-  );
-  if(watchingHuggy){
-    h.moveDelay = 8; // slower if watched
-  }else{
-    h.moveDelay = 5; // faster if ignored
+  // Night 1: Huggy only
+  // Night 2: Huggy + Mommy
+  if(game.night>=1){
+    tryMoveAnima(anims.huggy,huggyPath,t);
   }
+  if(game.night>=2){
+    tryMoveAnima(anims.mommy,mommyPath,t);
+  }
+}
 
-  // Move along path
-  const idx = huggyPath.indexOf(h.state);
-  if(idx < huggyPath.length-1){
-    h.state = huggyPath[idx+1];
-    h.lastMove = t;
+function tryMoveAnima(anim,path,t){
+  if(t - anim.lastCheck < anim.moveInterval) return;
+  anim.lastCheck = t;
+
+  const ai = Math.max(0, Math.min(20, anim.ai));
+  if(ai<=0) return;
+
+  const r = Math.floor(Math.random()*20)+1;
+  if(r>ai) return; // no move this time
+
+  const idx = path.indexOf(anim.state);
+  if(idx < 0){
+    anim.state = path[0];
+    return;
+  }
+  if(idx < path.length-1){
+    anim.state = path[idx+1];
   }else{
-    // at door: check door status
-    if(!game.leftDoorClosed){
-      // Jumpscare
-      triggerHuggyJumpscare();
-    }else{
-      // door protected you; reset him to earlier state
-      h.state = 'hall1';
-      h.lastMove = t;
+    // at door
+    if(anim === anims.huggy){
+      if(!game.leftDoorClosed){
+        triggerJumpscare(`${anim.name} (left door)`);
+      }else{
+        anim.state = path[path.length-2];
+      }
+    }else if(anim === anims.mommy){
+      if(!game.rightDoorClosed){
+        triggerJumpscare(`${anim.name} (right door)`);
+      }else{
+        anim.state = path[path.length-2];
+      }
     }
   }
 }
 
-// ===== JUMPSCARE & WIN =====
-function triggerHuggyJumpscare(){
-  if(game.state!=='office') return;
-  game.state = 'jumpscare';
+// ===== Jumpscare & win =====
+function triggerJumpscare(reason){
+  if(game.state!=='office')return;
+  game.state='jumpscare';
   stopAllMusic();
   applyMasterVolume();
   if(jumpscareSound){
     jumpscareSound.currentTime=0;
     jumpscareSound.play().catch(()=>{});
   }
+  jumpscareDiv.textContent = reason.toUpperCase() + ' GOT YOU';
   jumpscareDiv.style.display='flex';
-  setTimeout(()=>{
-    game.running=false;
-  },2500);
+  setTimeout(()=>{game.running=false;},2500);
 }
 
-function checkWinLose(now){
-  // Powerout lose condition can be added later
-  if(game.hour>=6){
-    if(game.state==='office'){
-      game.state='win';
-      stopAllMusic();
-      sixAMDiv.style.display='flex';
-      setTimeout(()=>{
+function checkWinLose(){
+  if(game.hour>=6 && game.state==='office'){
+    game.state='win';
+    nightCompleteDiv.textContent = `NIGHT ${game.night} COMPLETE`;
+    nightCompleteDiv.style.display='flex';
+    stopAllMusic();
+    setTimeout(()=>{
+      nightCompleteDiv.style.display='none';
+      if(game.night===1){
+        // go to Night 2
+        startNight(2);
+      }else{
+        // reached Night 3 stub – return to title
         game.running=false;
-      },3000);
-    }
+        titleScreen.style.display='flex';
+        fadeIn(titleMusic,options.masterVolume);
+      }
+    },2500);
   }
 }
 
-// ===== DRAWING =====
+// ===== Drawing =====
 function drawOffice(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // Basic office background
   const w = canvas.width;
   const h = canvas.height;
-  ctx.fillStyle = '#101420';
+  ctx.clearRect(0,0,w,h);
+
+  // office background
+  ctx.fillStyle='#101420';
   ctx.fillRect(0,0,w,h);
 
-  // Desk
+  // desk
   ctx.fillStyle='#181c28';
   ctx.fillRect(w*0.2,h*0.65,w*0.6,h*0.1);
 
-  // Left door area
+  // left door
   ctx.fillStyle = game.leftDoorClosed ? '#303340' : '#05070b';
   ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
 
-  // Right door area
+  // right door
   ctx.fillStyle = game.rightDoorClosed ? '#303340' : '#05070b';
   ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
 
-  // Left hallway light effect
   if(game.leftLightOn){
     ctx.fillStyle='rgba(200,200,255,0.4)';
     ctx.fillRect(0,h*0.3,w*0.2,h*0.4);
   }
-  // Right hallway light effect
   if(game.rightLightOn){
     ctx.fillStyle='rgba(200,200,255,0.4)';
     ctx.fillRect(w*0.8,h*0.3,w*0.2,h*0.4);
   }
 
-  // Draw Huggy silhouette if near door
-  const hState = game.anim.huggy.state;
-  if(hState==='hall1'){
-    // show in left hall
+  // Huggy silhouettes
+  const hs = anims.huggy.state;
+  if(hs==='1B'){
     ctx.fillStyle='#0033aa';
-    ctx.fillRect(w*0.06,h*0.35,40,120); // placeholder
-  }else if(hState==='door'){
-    // show at left doorway
+    ctx.fillRect(w*0.1,h*0.35,40,110);
+  }else if(hs==='2A'){
     ctx.fillStyle='#0055ff';
-    ctx.fillRect(w*0.02,h*0.35,60,150); // closer
+    ctx.fillRect(w*0.06,h*0.36,50,130);
+  }else if(hs==='doorL'){
+    ctx.fillStyle='#77aaff';
+    ctx.fillRect(w*0.02,h*0.35,60,150);
+  }
+
+  // Mommy silhouettes
+  const ms = anims.mommy.state;
+  if(ms==='1B'){
+    ctx.fillStyle='#aa3377';
+    ctx.fillRect(w*0.8+h*0.0,h*0.35,40,110); // reuse 1B area
+  }else if(ms==='2B'){
+    ctx.fillStyle='#ff5588';
+    ctx.fillRect(w*0.84,h*0.36,50,130);
+  }else if(ms==='doorR'){
+    ctx.fillStyle='#ff99cc';
+    ctx.fillRect(w*0.9,h*0.35,60,150);
   }
 
   // HUD text
-  hud.textContent = `Night ${game.night}\nHuggy state: ${game.anim.huggy.state}`;
+  hud.textContent = `Night ${game.night}\nHuggy AI: ${anims.huggy.ai} (${anims.huggy.state})\nMommy AI: ${anims.mommy.ai} (${anims.mommy.state})`;
 }
 
-// Cam view placeholder
+// draw cams into canvas (simple overlays)
 function drawCamView(){
-  if(!game.camsOpen) return;
-  const vw = 480, vh=270;
+  const vw=560,vh=315;
   const cx = canvas.width/2 - vw/2;
-  const cy = canvas.height/2 - vh/2;
+  const cy = canvas.height*0.45 - vh/2;
 
   ctx.save();
   ctx.strokeStyle='#666';
   ctx.strokeRect(cx,cy,vw,vh);
-
   ctx.fillStyle='#05050a';
   ctx.fillRect(cx,cy,vw,vh);
-
-  ctx.font='14px Arial';
   ctx.fillStyle='#ddd';
+  ctx.font='14px Arial';
 
-  if(game.currentCam===1){
-    ctx.fillText('CAM 1 – STAGE (Huggy idle)',cx+20,cy+30);
+  const c = game.currentCam;
+
+  if(c===1){ // Stage
+    ctx.fillText('Huggy & Mommy starting area (Stage)',cx+20,cy+30);
     ctx.fillStyle='#0033aa';
-    ctx.fillRect(cx+vw/2-30,cy+vh/2-60,60,120); // Huggy at stage
-  }else if(game.currentCam===2){
-    ctx.fillText('CAM 2 – LEFT HALL',cx+20,cy+30);
-    if(game.anim.huggy.state==='hall1' || game.anim.huggy.state==='door'){
+    ctx.fillRect(cx+vw*0.3,cy+vh*0.5-60,40,120);
+    ctx.fillStyle='#aa3377';
+    ctx.fillRect(cx+vw*0.6,cy+vh*0.5-60,40,120);
+  }else if(c===2){ // 1B
+    ctx.fillText('Hall outside Stage (1B)',cx+20,cy+30);
+    if(anims.huggy.state==='1B'){
       ctx.fillStyle='#0033aa';
-      ctx.fillRect(cx+vw*0.6,cy+vh*0.5-60,50,120);
+      ctx.fillRect(cx+vw*0.5,cy+vh*0.55-60,40,120);
     }
-  }else if(game.currentCam===3){
-    ctx.fillText('CAM 3 – RIGHT HALL (stub)',cx+20,cy+30);
-  }else if(game.currentCam===4){
-    ctx.fillText('CAM 4 – CATNAP COVE (stub)',cx+20,cy+30);
+    if(anims.mommy.state==='1B'){
+      ctx.fillStyle='#aa3377';
+      ctx.fillRect(cx+vw*0.6,cy+vh*0.55-60,40,120);
+    }
+  }else if(c===3){ // 2A left hall
+    ctx.fillText('Left Hall (2A)',cx+20,cy+30);
+    if(anims.huggy.state==='2A' || anims.huggy.state==='doorL'){
+      ctx.fillStyle='#0055ff';
+      ctx.fillRect(cx+vw*0.4,cy+vh*0.5-60,50,130);
+    }
+  }else if(c===4){ // 2B right hall
+    ctx.fillText('Right Hall (2B)',cx+20,cy+30);
+    if(anims.mommy.state==='2B' || anims.mommy.state==='doorR'){
+      ctx.fillStyle='#ff5588';
+      ctx.fillRect(cx+vw*0.55,cy+vh*0.5-60,50,130);
+    }
+  }else if(c===5){
+    ctx.fillText('Right Corridor (CAM 3) – placeholder',cx+20,cy+30);
+  }else if(c===6){
+    ctx.fillText('Storage (CAM 4A) – placeholder',cx+20,cy+30);
+  }else if(c===7){
+    ctx.fillText('Make-A-Friend (CAM 4B) – placeholder',cx+20,cy+30);
+  }else if(c===8){
+    ctx.fillText('CatNap Cove (CAM 5) – placeholder (Foxy logic later)',cx+20,cy+30);
+  }else if(c===9){
+    ctx.fillText('Power Room (CAM 6) – placeholder',cx+20,cy+30);
+  }else if(c===10){
+    ctx.fillText('Vents (CAM 7) – placeholder',cx+20,cy+30);
+  }else if(c===11){
+    ctx.fillText('Poppy Door (CAM 8) – placeholder',cx+20,cy+30);
   }
 
   ctx.restore();
